@@ -17,6 +17,8 @@ seq(sys: SpinSystem, regime: Regime, acq: Acquisition, **kw) -> SimulationResult
 | CPMG 回波链 (Carr–Purcell–Meiboom–Gill) | `cpmg` | [`oneD.py`](oneD.py) | `cpmg` | CPMG 回波链：90°x — [τ — 180°y — τ]·n — acq。 |
 | 异核单量子相关谱 (HSQC, 2D) | `hsqc` | [`hetcor.py`](hetcor.py) | `hsqcetgp` | 异核单量子相关 2D：INEPT — t1(180° obs refocus) — reverse INEPT — acq。 |
 | 异核多键相关谱 (HMBC, 2D) | `hmbc` | [`hetcor.py`](hetcor.py) | `hmbcgplpndqf` | 异核多键 (long-range) 相关 2D：τ = 1/(4·nJ_CH)，其它与 HSQC 同构。 |
+| 同核相关谱 (COSY-90, 2D) | `cosy` | [`homcor.py`](homcor.py) | `cosygpqf` / `cosy90` | 同核 2D 相关：90°φ₁ — t1 — 90°x — acq，对角峰与J 耦合交叉峰。 |
+| 总相关谱 (TOCSY, 2D) | `tocsy` | [`homcor.py`](homcor.py) | `dipsi2etgpsi` / `mlevphpr` | 同一 J 网络内的全部相关（可跨单一键继接）；理想 isotropic mixing。 |
 
 ---
 
@@ -250,4 +252,76 @@ acq2d  = Acquisition2D(
 
 res = hmbc(sys, regime, acq2d, indirect='13C', J_long=8.0)
 # 主峰位于 (4 ppm in F2, 100 ppm in F1) —— 长程相关
+```
+
+---
+
+## 同核相关谱 — `cosy` (`cosygpqf` / `cosy90`)
+
+二维同核相关：F1 = F2 = 观测核化学位移。骨架为
+`90°φ₁(obs) — t1 — 90°x(obs) — acq`，以 States 超复数采集：
+φ₁ = +π/2 (“y”) 给 cos 集，φ₁ = 0 (“x”) 给 sin 集。对角峰位于
+(δᵢ, δᵢ)，交叉峰位于所有直接 J 耦合对。不包含轴峰过滤、双量子过滤
+或梯度选的的太许多动作。
+
+**签名**
+```python
+cosy(sys, regime, acq2d) -> SimulationResult2D
+```
+
+**调用示例**
+```python
+from src.core import HF, Acquisition, Acquisition2D, SpinSystem
+from src.sequences import cosy
+
+sys = SpinSystem(['1H','1H'], [2.0, 4.0], [[0, 7.0], [7.0, 0]])
+regime = HF(B0_T=9.4, observed='1H', carrier_ppm=0.0)
+acq2d  = Acquisition2D(
+    t1=Acquisition(n_points=64,  dt=1/6000, zero_fill=2, half_first=True,
+                   apodization='exponential', lb_Hz=2.0, t2_star=0.4),
+    t2=Acquisition(n_points=1024, dt=1/6000, zero_fill=2, half_first=True,
+                   apodization='exponential', lb_Hz=2.0, t2_star=0.4),
+)
+
+res = cosy(sys, regime, acq2d)
+# 对角峰 (2,2)、(4,4)；交叉峰 (2,4)、(4,2)
+```
+
+---
+
+## 总相关谱 — `tocsy` (`dipsi2etgpsi` / `mlevphpr`)
+
+与 `cosy` 同一超复数骨架，但将 t1 后的 90° 读出脉冲替换为 *理想 isotropic
+mixing*：`U_mix = exp(-i · τ_m · H_iso)`，其中 `H_iso` 仅包含观测核内部
+同核对的完整 `Ix·Ix + Iy·Iy + Iz·Iz` 项（实际上是 DIPSI / MLEV 的理想
+极限）。高奏时 J 网络中跨多键中转连接的两个自旋之间也会出现交叉峰，
+这是与 COSY 的关键区别。
+
+**签名**
+```python
+tocsy(sys, regime, acq2d, *, mixing_time) -> SimulationResult2D
+```
+
+**参数**
+- `mixing_time`：混合时间 τ_m（秒）；¹H TOCSY 常用 30–120 ms。
+
+**调用示例**
+```python
+import numpy as np
+from src.core import HF, Acquisition, Acquisition2D, SpinSystem
+from src.sequences import tocsy
+
+# A-M-X 链：J_AM = J_MX = 7 Hz, J_AX = 0
+J = np.array([[0,7,0],[7,0,7],[0,7,0]])
+sys = SpinSystem(['1H']*3, [1.0, 3.0, 5.0], J)
+regime = HF(B0_T=9.4, observed='1H', carrier_ppm=0.0)
+acq2d  = Acquisition2D(
+    t1=Acquisition(n_points=96,  dt=1/6000, zero_fill=2, half_first=True,
+                   apodization='exponential', lb_Hz=2.0, t2_star=0.4),
+    t2=Acquisition(n_points=1024, dt=1/6000, zero_fill=2, half_first=True,
+                   apodization='exponential', lb_Hz=2.0, t2_star=0.4),
+)
+
+res = tocsy(sys, regime, acq2d, mixing_time=0.080)
+# 除 (1,3)、(3,5) 等直接交叉峰外，经 M 转接的 (1,5) / (5,1) 也会出现
 ```

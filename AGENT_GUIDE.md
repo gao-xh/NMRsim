@@ -395,7 +395,7 @@ High-level milestones below mirror that plan:
 - v0.3 — Multi-component mixing (weighted sum of `SpinSystem`s), basic
   matplotlib viewer.
 - v0.4 — 2D module: `hsqc`, `hmbc`; generic 2D wrapper + `fft2_hypercomplex` (done).
-- v0.5 — `cosy`, `tocsy`. Optional sequence-DSL (`Event` / `run_sequence`).
+- v0.5 — `cosy`, `tocsy` (done). Optional sequence-DSL (`Event` / `run_sequence`).
 - v0.6 — Minimal Qt UI: edit `SpinSystem` + pick `Regime` + pick `Acquisition`
   + run any sequence + compare.
 - v0.7 — High-field spectrum → {δ, J} fitting (scipy.optimize on the same
@@ -499,3 +499,16 @@ This section records architecture-level changes only. Per-change deltas
   (WALTZ-16 / GARP), or echo-antiecho quadrature — the density-matrix
   simulation already gives the desired pathway, and the ideal-CW
   decoupling limit (`_zero_heteronuclear_J`) is sufficient for v0.4.
+- **2026-06-02 — Layer 4 sequences: COSY + TOCSY.** Added
+  `src/sequences/homcor.py` with `cosy` (COSY-90: 90°φ₁ — t1 — 90°x —
+  acq) and `tocsy` (idealised isotropic mixing: replace the read pulse
+  with `exp(-i·τ_m·H_iso)`, where `H_iso` keeps only the full
+  `Ix·Ix + Iy·Iy + Iz·Iz` term for homonuclear pairs on the observed
+  channel). The States quadrature uses φ₁ = +y for the cosine set and
+  φ₁ = +x for the sine set — the earlier draft used −y for cos which
+  produced `exp(−i·Ω·t₁)` modulation and put diagonals on the
+  anti-diagonal of F1; record this trap because the same care is
+  needed for any future homonuclear 2D wrapper (NOESY, ROESY). Real
+  DIPSI / MLEV / WURST mixing, axial-peak filters, DQ filters, and
+  gradient coherence selection remain out of scope (deferred per
+  `docs/SEQUENCES_PLAN.md` §4).

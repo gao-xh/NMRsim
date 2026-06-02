@@ -6,6 +6,27 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Added (2026-06-02 — Layer 4 sequences: COSY + TOCSY)
+- `src/sequences/homcor.py` — two homonuclear 2D sequences sharing one
+  pre-built propagator runner:
+  - `cosy(sys, regime, acq2d)` — COSY-90 (`cosygpqf` / `cosy90`).
+    Skeleton `90°φ₁ — t1 — 90°x — acq`; States cycles φ₁ between
+    +y (cos) and +x (sin) so the hypercomplex FT gives the correct
+    F1 sign (peaks land on the (δ, δ) diagonal, not the anti-diagonal).
+  - `tocsy(sys, regime, acq2d, *, mixing_time)` — TOCSY
+    (`dipsi2etgpsi` / `mlevphpr`). Replaces the read pulse with an
+    *idealised isotropic mixing propagator* `exp(-i τ_m H_iso)`,
+    where `H_iso = 2π Σ_{ij ∈ obs} J_ij (Ix·Ix + Iy·Iy + Iz·Iz)`
+    (homonuclear pairs on the observed channel only; chemical shifts
+    and heteronuclear J are dropped during mixing — the
+    perfect-spin-lock limit of DIPSI / MLEV).
+- `tests/test_layer4_cosy.py` — 4 regression tests:
+  AX COSY shows both diagonals and both cross peaks, uncoupled COSY
+  shows only diagonals, TOCSY on an A-M-X chain produces a relayed
+  A↔X cross peak (COSY does not), mixing-time validation.
+- `src/sequences/README.md` — catalogue extended with COSY and TOCSY
+  entries.
+
 ### Added (2026-06-02 — Layer 3 sequences: HSQC + HMBC + 2D framework)
 - `src/core/acquisition.Acquisition2D` — frozen dataclass bundling a
   `t1` (indirect) and `t2` (direct) `Acquisition`. Exposed via

@@ -20,10 +20,12 @@ from .oneD import (
 )
 from .twoD import acquire2d_hypercomplex
 from .hetcor import hsqc, hmbc
+from .homcor import cosy, tocsy
 
 __all__ = [
     "pulse_acquire", "pulse_acquire_decoupled",
     "spin_echo", "inversion_recovery", "cpmg",
     "acquire2d_hypercomplex",
     "hsqc", "hmbc",
+    "cosy", "tocsy",
 ]
