@@ -6,6 +6,36 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Added (2026-06-02 — Layer 5 sequences: ZULF)
+- `src/sequences/zulf.py` — three new ZULF / low-field 1D sequences:
+  - `zulf_pulse_acquire(sys, regime, acq, *, initial='x', detect='Mx')`
+    — sudden-drop pulse-acquire (prepolarize → free evolution → M_x
+    detect). Works for `ZULF()` (true zero field) and `LF(B0_T=...)`.
+  - `zulf_j_spectrum(sys, regime=None, acq=None, *, BW_Hz=200, T_s=10,
+    t2_star=2.0, lb_Hz=0.5, ...)` — convenience wrapper preset for
+    narrow-bandwidth J-spectroscopy.
+  - `zulf_dc_pulse_acquire(sys, regime, acq, *, channel, B_T=None,
+    duration_s=None, flip_angle=None, phase=0.0, initial='z',
+    detect='Mx', ideal=False)` — applies a DC pulse on one channel
+    and acquires. Either physical knobs (`B_T`, `duration_s`) or
+    `flip_angle` may be given; `flip_angle` wins as a hard-pulse
+    shortcut.
+- `src/core/pulses.pulse_with_evolution(sys, channel, B_T, duration_s,
+  H_static, phase)` — DC / RF pulse propagator that retains the static
+  Hamiltonian during the pulse: `U = exp(-i(H_static + H_RF)·τ)`. In
+  ZULF, `γB ≈ J`, so the ideal-hard-pulse limit used elsewhere is
+  unreliable; `zulf_dc_pulse_acquire` defaults to this primitive.
+- `src/core/states.prepolarized_z(sys)` — `Σ γ_i I_zi`; default initial
+  state for `zulf_dc_pulse_acquire`.
+- `tests/test_layer5_zulf.py` — 4 regression tests:
+  heteronuclear ¹H-¹³C J=140 Hz peak position, homonuclear ¹H₂ DC-only
+  (F_x commutes with H_J), DC-pulse ideal round-trip
+  (prepolarized_z + π/2 on +y ≡ prepolarized_x), and physical
+  (B_T, duration_s) DC pulse converging to the ideal hard pulse in
+  the γB ≫ J limit.
+- `src/sequences/README.md` — catalogue extended with the three ZULF
+  rows + full sections.
+
 ### Added (2026-06-02 — Layer 4 sequences: COSY + TOCSY)
 - `src/sequences/homcor.py` — two homonuclear 2D sequences sharing one
   pre-built propagator runner:

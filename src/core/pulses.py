@@ -94,6 +94,35 @@ def pulse_y(sys: SpinSystem, channel: ChannelSpec, angle: float) -> np.ndarray:
     return pulse(sys, channel, angle, np.pi / 2)
 
 
+def pulse_with_evolution(sys: SpinSystem,
+                         channel: ChannelSpec,
+                         B_T: float,
+                         duration_s: float,
+                         H_static: np.ndarray,
+                         phase: float = 0.0) -> np.ndarray:
+    """DC / RF pulse propagator that does NOT neglect the static Hamiltonian.
+
+    U = exp(-i · (H_static + H_RF) · duration_s)
+
+        H_RF = Σ_{i ∈ channel} γ_i · B_T · (cosφ · Ix_i + sinφ · Iy_i)
+
+    γ_i is the signed angular gyromagnetic ratio (rad/s/T) of spin i;
+    `channel` selects which spins feel the field. Use this for ZULF DC
+    pulses where γB ≈ J and `pulse()` (the ideal hard-pulse limit) is
+    not appropriate.
+    """
+    from . import isotopes as iso_table
+
+    idx = _resolve_channel(sys, channel)
+    Ix, Iy, _ = operators(sys.n)
+    cphi, sphi = cos(phase), sin(phase)
+    H_RF = np.zeros((2 ** sys.n, 2 ** sys.n), dtype=complex)
+    for i in idx:
+        gamma = iso_table.gamma_rad_per_s_per_T(sys.isotopes[i])
+        H_RF = H_RF + gamma * B_T * (cphi * Ix[i] + sphi * Iy[i])
+    return expm(-1j * (H_static + H_RF) * duration_s)
+
+
 # ---------------------------------------------------------------------------
 # Propagators and evolution
 # ---------------------------------------------------------------------------

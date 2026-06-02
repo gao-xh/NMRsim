@@ -37,3 +37,14 @@ def prepolarized_x(sys: SpinSystem) -> np.ndarray:
     for i in range(sys.n):
         rho = rho + iso_table.get(sys.isotopes[i]).gamma_MHz_per_T * Ix[i]
     return rho
+
+
+def prepolarized_z(sys: SpinSystem) -> np.ndarray:
+    """Σ γ_i I_zi — prepolarized state along z (e.g. inside the
+    polarizing magnet, before sudden field drop)."""
+    _, _, Iz = operators(sys.n)
+    dim = 2 ** sys.n
+    rho = np.zeros((dim, dim), dtype=complex)
+    for i in range(sys.n):
+        rho = rho + iso_table.get(sys.isotopes[i]).gamma_MHz_per_T * Iz[i]
+    return rho

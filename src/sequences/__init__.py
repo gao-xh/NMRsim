@@ -21,6 +21,7 @@ from .oneD import (
 from .twoD import acquire2d_hypercomplex
 from .hetcor import hsqc, hmbc
 from .homcor import cosy, tocsy
+from .zulf import zulf_pulse_acquire, zulf_j_spectrum, zulf_dc_pulse_acquire
 
 __all__ = [
     "pulse_acquire", "pulse_acquire_decoupled",
@@ -28,4 +29,5 @@ __all__ = [
     "acquire2d_hypercomplex",
     "hsqc", "hmbc",
     "cosy", "tocsy",
+    "zulf_pulse_acquire", "zulf_j_spectrum", "zulf_dc_pulse_acquire",
 ]

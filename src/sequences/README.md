@@ -19,6 +19,9 @@ seq(sys: SpinSystem, regime: Regime, acq: Acquisition, **kw) -> SimulationResult
 | 异核多键相关谱 (HMBC, 2D) | `hmbc` | [`hetcor.py`](hetcor.py) | `hmbcgplpndqf` | 异核多键 (long-range) 相关 2D：τ = 1/(4·nJ_CH)，其它与 HSQC 同构。 |
 | 同核相关谱 (COSY-90, 2D) | `cosy` | [`homcor.py`](homcor.py) | `cosygpqf` / `cosy90` | 同核 2D 相关：90°φ₁ — t1 — 90°x — acq，对角峰与J 耦合交叉峰。 |
 | 总相关谱 (TOCSY, 2D) | `tocsy` | [`homcor.py`](homcor.py) | `dipsi2etgpsi` / `mlevphpr` | 同一 J 网络内的全部相关（可跨单一键继接）；理想 isotropic mixing。 |
+| ZULF 单脉冲采集 (zero-field pulse-acquire) | `zulf_pulse_acquire` | [`zulf.py`](zulf.py) | — | 预极化 → 突降到零（或低）场 → `H_J_only` 下自由演化 → `Mx` 检测。 |
+| ZULF J 谱 (J-spectroscopy) | `zulf_j_spectrum` | [`zulf.py`](zulf.py) | — | `zulf_pulse_acquire` 的便捷封装：默认窄带宽长 AQ + 指数加权，适合 J 谱。 |
+| ZULF DC 脉冲采集 (DC-pulse acquire) | `zulf_dc_pulse_acquire` | [`zulf.py`](zulf.py) | — | 预极化 → 沿某通道施加 DC 脉冲（默认保留静态 H 演化）→ 采集。 |
 
 ---
 
@@ -324,4 +327,104 @@ acq2d  = Acquisition2D(
 
 res = tocsy(sys, regime, acq2d, mixing_time=0.080)
 # 除 (1,3)、(3,5) 等直接交叉峰外，经 M 转接的 (1,5) / (5,1) 也会出现
+```
+
+---
+
+## ZULF 单脉冲采集 — `zulf_pulse_acquire`
+
+零/超低场标准实验：样品在高场内预极化，突然切到零场（或弱偏置场），
+沿 x 方向的总磁化在 `H_J_only`（或 `H_lab(B0)`）下自由演化，由磁强计
+探测 `M_x = Σ γ_i I_{x,i}` 信号。本封装实现 sudden-drop 模型：
+直接以 `regime.initial_state(sys)` 作为 ρ₀，无 RF 脉冲。
+
+**签名**
+```python
+zulf_pulse_acquire(sys, regime, acq, *, initial='x', detect='Mx') -> SimulationResult
+```
+
+**参数**
+- `regime`：通常 `ZULF()`（真零场）或 `LF(B0_T=...)`（小偏置场，实验室系）。
+- `initial`：`'x'` 默认（`prepolarized_x`）；`'z'`（`prepolarized_z`）；
+  `'regime'`（使用 `regime.initial_state(sys)`）；或自定义 ρ 数组。
+- `detect`：`'Mx'` 默认（γ 加权 `M_x`）；`'Mz'`；`'regime'`；或自定义算符。
+
+**调用示例**
+```python
+from src.core import ZULF, Acquisition, SpinSystem
+from src.sequences import zulf_pulse_acquire
+
+sys = SpinSystem(['1H','13C'], [0.0, 0.0], [[0, 140.0],[140.0, 0]])
+acq = Acquisition.from_bw_duration(BW_Hz=400, T_s=2.0, t2_star=1.0)
+res = zulf_pulse_acquire(sys, ZULF(), acq)
+# res.freq_Hz, res.spectrum；峰位于 f = |J| = 140 Hz
+```
+
+---
+
+## ZULF J 谱 — `zulf_j_spectrum`
+
+`zulf_pulse_acquire` 的便捷封装：默认 `regime=ZULF()`、`BW=200 Hz`、
+`T=10 s`、`t2_star=2 s`、`lb=0.5 Hz` 指数加权，匹配吡啶 / 乙腈等典型
+J 谱场景。需要自定义可直接传 `regime` / `acq` 覆盖。
+
+**签名**
+```python
+zulf_j_spectrum(sys, regime=None, acq=None, *,
+                BW_Hz=200.0, T_s=10.0, t2_star=2.0, lb_Hz=0.5,
+                initial='x', detect='Mx') -> SimulationResult
+```
+
+**调用示例**
+```python
+from src.core import SpinSystem
+from src.sequences import zulf_j_spectrum
+
+sys = SpinSystem(['1H','13C'], [0.0, 0.0], [[0, 140.0],[140.0, 0]])
+res = zulf_j_spectrum(sys)  # 全默认
+```
+
+---
+
+## ZULF DC 脉冲采集 — `zulf_dc_pulse_acquire`
+
+在零/低场对指定通道施加 DC 脉冲（沿任意横向相位），然后采集。在 ZULF
+下 `γB ≈ J`，理想硬脉冲极限不再可靠，因此默认采用
+`U = exp(-i (H_static + H_RF) τ)`（脉冲期间保留静态 Hamiltonian 演化）；
+设 `ideal=True` 退化为硬脉冲。脉冲可用 (`B_T`, `duration_s`) 物理参数
+或 `flip_angle` 快捷指定；两者同时给出时以 `flip_angle` 优先（隐含硬脉冲）。
+
+**签名**
+```python
+zulf_dc_pulse_acquire(sys, regime, acq, *,
+                      channel, B_T=None, duration_s=None,
+                      flip_angle=None, phase=0.0,
+                      initial='z', detect='Mx',
+                      ideal=False) -> SimulationResult
+```
+
+**参数**
+- `channel`：DC 脉冲作用的同位素，例如 `'1H'`。
+- `B_T` / `duration_s`：物理参数；翻转角度 = `|γ(channel)| · B_T · duration_s`。
+- `flip_angle`：弧度，硬脉冲快捷。
+- `phase`：脉冲相位，弧度。`0 = +x`，`π/2 = +y`。
+- `initial`：默认 `'z'`（预极化沿 z，脉冲前的物理初态）。
+- `ideal`：True 时即使给出 (`B_T`, `duration_s`) 也走硬脉冲极限（用于验证）。
+
+**调用示例**
+```python
+import numpy as np
+from src.core import ZULF, Acquisition, SpinSystem
+from src.sequences import zulf_dc_pulse_acquire
+
+sys = SpinSystem(['1H','1H'], [0.0, 0.0], [[0, 7.0],[7.0, 0]])
+acq = Acquisition.from_bw_duration(BW_Hz=50, T_s=2.0, t2_star=1.0)
+
+# 硬脉冲快捷：90° 绕 +y → Iz → +Ix；后续等价于 zulf_pulse_acquire(..., initial='x')
+res = zulf_dc_pulse_acquire(sys, ZULF(), acq,
+                            channel='1H', flip_angle=np.pi/2, phase=np.pi/2)
+
+# 物理参数：1 mT × 5.9 µs ≈ 90° 在 1H 上
+res = zulf_dc_pulse_acquire(sys, ZULF(), acq,
+                            channel='1H', B_T=1e-3, duration_s=5.87e-6, phase=np.pi/2)
 ```

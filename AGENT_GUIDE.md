@@ -300,10 +300,11 @@ Reference Hamiltonians:
 | `system.py`      | `SpinSystem` dataclass: isotopes + shifts_ppm + J_Hz.         |
 |                  | Validates shape, symmetry, diagonal-zero, I=1/2-only.         |
 | `hamiltonian.py` | Three H builders (see 16.2). All return Hermitian, rad/s.     |
-| `states.py`      | Initial density matrices (thermal high-T, prepolarized x).    |
+| `states.py`      | Initial density matrices (thermal high-T, prepolarized x/z). |
 | `detection.py`   | Detection operators (I+, Mx, Mz).                             |
-| `pulses.py`      | Hard pulses (`pulse`), propagators, `evolve`, `apply_unitary`.|
-|                  | Reserved stubs: `ShapedPulse`, `Event`, `run_sequence` (NYI). |
+| `pulses.py`      | Hard pulses (`pulse`), DC pulses with static H (`pulse_with_evolution`), |
+|                  | propagators, `evolve`, `apply_unitary`. Reserved stubs:        |
+|                  | `ShapedPulse`, `Event`, `run_sequence` (NYI).                  |
 | `relaxation.py`  | `relax_T1(rho, sys, t)` — per-spin Bloch longitudinal recovery. |
 |                  | Projection on each `Iz_i`; no Liouville superoperator yet.    |
 | `engine.py`      | `EigenSystem`, `fid()`, `stick_spectrum()`, `acquire(...,acq)`. |
@@ -396,7 +397,10 @@ High-level milestones below mirror that plan:
   matplotlib viewer.
 - v0.4 — 2D module: `hsqc`, `hmbc`; generic 2D wrapper + `fft2_hypercomplex` (done).
 - v0.5 — `cosy`, `tocsy` (done). Optional sequence-DSL (`Event` / `run_sequence`).
-- v0.6 — Minimal Qt UI: edit `SpinSystem` + pick `Regime` + pick `Acquisition`
+- v0.6 — `zulf_pulse_acquire`, `zulf_j_spectrum`, `zulf_dc_pulse_acquire`
+  (done). DC-pulse propagator with retained static H
+  (`pulse_with_evolution`) added to `pulses.py`.
+- v0.7 — Minimal Qt UI: edit `SpinSystem` + pick `Regime` + pick `Acquisition`
   + run any sequence + compare.
 - v0.7 — High-field spectrum → {δ, J} fitting (scipy.optimize on the same
   forward engine).
@@ -512,3 +516,20 @@ This section records architecture-level changes only. Per-change deltas
   DIPSI / MLEV / WURST mixing, axial-peak filters, DQ filters, and
   gradient coherence selection remain out of scope (deferred per
   `docs/SEQUENCES_PLAN.md` §4).
+- **2026-06-02 — Layer 5 sequences: ZULF.** Added `src/sequences/zulf.py`
+  with `zulf_pulse_acquire`, `zulf_j_spectrum` (long-AQ convenience
+  wrapper) and `zulf_dc_pulse_acquire`. The DC-pulse function defaults
+  to retaining the static Hamiltonian during the pulse, i.e.
+  `U = exp(-i(H_static + H_RF)·τ)` — ZULF has `γB ≈ J`, so the
+  ideal-hard-pulse limit (used elsewhere via `pulse()`) is no longer
+  reliable; the new primitive lives in `pulses.py` as
+  `pulse_with_evolution(sys, channel, B_T, duration_s, H_static, phase)`.
+  Set `ideal=True` (or pass `flip_angle=...`) to retrieve the hard-pulse
+  limit. `states.prepolarized_z` was added for the DC-pulse default
+  initial state. Observed pulse-axis convention (empirical, codified in
+  the round-trip test): `pulse(angle=π/2, phase=+π/2)` rotates Iz → +Ix,
+  so phase=+π/2 is the canonical “flip Iz to +Ix” pulse — future ZULF /
+  PHIP sequences should use the same convention. Multi-quantum ZULF
+  (π–t₁–π excitation, e.g. the Blanchard/Budker 13C₂-AcOH 2D protocol) is
+  deferred to v0.8 because its phase-cycling structure does not fit the
+  States cos/sin pattern of `acquire2d_hypercomplex`.

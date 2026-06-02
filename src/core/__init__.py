@@ -23,7 +23,7 @@ Low-level API (kept for advanced use)
 """
 from .system import SpinSystem
 from .hamiltonian import H_J_only, H_lab, H_rotating
-from .states import thermal_high_temp, prepolarized_x
+from .states import thermal_high_temp, prepolarized_x, prepolarized_z
 from .detection import detect_Iplus, detect_Mx, detect_Mz
 from .engine import fid, stick_spectrum, EigenSystem, acquire
 from .processing import (
@@ -42,7 +42,7 @@ from .acquisition import (
     default_acq_ZULF,
 )
 from .pulses import (
-    pulse, pulse_x, pulse_y,
+    pulse, pulse_x, pulse_y, pulse_with_evolution,
     propagator, evolve, apply_unitary,
 )
 from .relaxation import relax_T1
@@ -54,7 +54,7 @@ from .simulate import (
 __all__ = [
     "SpinSystem",
     "H_J_only", "H_lab", "H_rotating",
-    "thermal_high_temp", "prepolarized_x",
+    "thermal_high_temp", "prepolarized_x", "prepolarized_z",
     "detect_Iplus", "detect_Mx", "detect_Mz",
     "fid", "stick_spectrum", "EigenSystem", "acquire",
     "apodize_exponential", "apodize_gaussian",
@@ -62,7 +62,7 @@ __all__ = [
     "Regime", "HF", "ZULF", "LF",
     "Acquisition", "Acquisition2D",
     "default_acq_HF_1H", "default_acq_HF_13C", "default_acq_ZULF",
-    "pulse", "pulse_x", "pulse_y",
+    "pulse", "pulse_x", "pulse_y", "pulse_with_evolution",
     "propagator", "evolve", "apply_unitary",
     "relax_T1",
     "simulate", "SimulationResult", "finalize_fid",
