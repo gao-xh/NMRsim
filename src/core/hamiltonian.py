@@ -29,8 +29,15 @@ from .ops import operators
 from .system import SpinSystem
 
 
-def _J_term(sys: SpinSystem) -> np.ndarray:
-    """Sum_{i<j} 2π J_ij (Ix Ix + Iy Iy + Iz Iz)."""
+def _J_term(sys: SpinSystem, *, secular_heteronuclear: bool = False) -> np.ndarray:
+    """Sum_{i<j} 2π J_ij (Ix Ix + Iy Iy + Iz Iz).
+
+    If `secular_heteronuclear` is True, the transverse (flip-flop) part is
+    dropped for pairs of different isotopes — required in any (multiply)
+    rotating frame where the Larmor difference is huge compared to J, so
+    those terms oscillate fast and average to zero. Homonuclear pairs
+    always keep the full bilinear.
+    """
     Ix, Iy, Iz = operators(sys.n)
     dim = 2 ** sys.n
     H = np.zeros((dim, dim), dtype=complex)
@@ -39,7 +46,11 @@ def _J_term(sys: SpinSystem) -> np.ndarray:
             J = sys.J_Hz[i, j]
             if J == 0.0:
                 continue
-            H += 2.0 * pi * J * (Ix[i] @ Ix[j] + Iy[i] @ Iy[j] + Iz[i] @ Iz[j])
+            same = sys.isotopes[i] == sys.isotopes[j]
+            if same or not secular_heteronuclear:
+                H += 2.0 * pi * J * (Ix[i] @ Ix[j] + Iy[i] @ Iy[j] + Iz[i] @ Iz[j])
+            else:
+                H += 2.0 * pi * J * (Iz[i] @ Iz[j])
     return H
 
 
@@ -96,5 +107,5 @@ def H_rotating(sys: SpinSystem,
         else:
             offset_Hz = sys.shifts_ppm[i] * 1e-6 * nu0
         H += 2.0 * pi * offset_Hz * Iz[i]
-    H += _J_term(sys)
+    H += _J_term(sys, secular_heteronuclear=True)
     return H

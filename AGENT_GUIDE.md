@@ -398,6 +398,34 @@ High-level milestones below mirror that plan:
 - v1.0 — Relaxation (T1/T2 per spin or per coherence), Liouville path,
   NOESY/ROESY.
 
+### 16.8a Sequence catalogue maintenance
+
+`src/sequences/README.md` is the user-facing catalogue of every
+implemented pulse sequence (name, file, Bruker equivalent, signature,
+parameters, call example). It is the entry point a caller reads before
+writing experiment code.
+
+Rule: **any change to the public set of sequences requires a same-commit
+update to that README.** This includes:
+
+- adding a new sequence function (new row in the top table + a dedicated
+  section with signature, parameter notes, and a runnable example);
+- removing or renaming a sequence;
+- changing a sequence's public signature, default arguments, or
+  validation behaviour;
+- adding/removing a sequence file under `src/sequences/`.
+
+What does *not* belong there:
+
+- physics derivations, design rationale, roadmap (those live in
+  `docs/SEQUENCES_PLAN.md` and §16.4 / §16.5 of this guide);
+- per-change history (that goes in `CHANGELOG.md`);
+- planned-but-unimplemented sequences (keep the README a catalogue of
+  what works *now*).
+
+If a PR adds a sequence without updating the README, treat it as
+incomplete.
+
 ### 16.9 Log of structural updates
 
 This section records architecture-level changes only. Per-change deltas

@@ -6,6 +6,31 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Added (2026-06-02 — Layer 1 sequences: pulse_acquire / zgpg)
+- `src/sequences/` — new package holding named pulse-sequence wrappers
+  built on top of `src.core`. Layer 1 (`oneD.py`) ships two sequences:
+  - `pulse_acquire(sys, regime, acq)` — Bruker `zg`, thin alias for
+    `simulate()` kept as a stable entry point.
+  - `pulse_acquire_decoupled(sys, regime, acq, decouple=None)` — Bruker
+    `zgpg` / `zgig`. Models ideal CW heteronuclear decoupling by
+    zeroing scalar couplings between `regime.observed` and every
+    nucleus in `decouple` (default: all non-observed isotopes).
+    Homonuclear couplings on the observed channel are preserved.
+- `tests/test_layer1_1d.py` — Layer-1 regression suite (peak counting):
+  single-¹H singlet, AX ¹H→4 lines, ¹³C-CH₃ quartet (1:3:3:1) without
+  decoupling, singlet under ideal ¹H decoupling, decouple-spec
+  equivalence and validation.
+
+### Fixed (high-field rotating-frame Hamiltonian)
+- `H_rotating` previously kept the full `2πJ (Ix·Ix + Iy·Iy + Iz·Iz)`
+  bilinear for heteronuclear pairs. In a (doubly) rotating frame the
+  flip-flop part oscillates at the Larmor difference (~MHz) and must
+  be dropped (standard secular truncation). Keeping it produced a
+  ~3.5 Hz second-order splitting of the inner ¹³C quartet lines (a
+  ¹H/¹³C system showed 6 peaks instead of 4). `_J_term` now takes
+  `secular_heteronuclear` flag; `H_rotating` uses it, `H_J_only` and
+  `H_lab` keep the full bilinear (correct for true zero/low field).
+
 ### Added (2026-06-02 — regime / acquisition / pulse layer)
 - `docs/SEQUENCES_PLAN.md` — roadmap for pulse-sequence coverage
   (4 layers from 1D basics to 2D, plus a parallel ZULF track and
