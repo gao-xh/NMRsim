@@ -304,11 +304,14 @@ Reference Hamiltonians:
 | `detection.py`   | Detection operators (I+, Mx, Mz).                             |
 | `pulses.py`      | Hard pulses (`pulse`), propagators, `evolve`, `apply_unitary`.|
 |                  | Reserved stubs: `ShapedPulse`, `Event`, `run_sequence` (NYI). |
+| `relaxation.py`  | `relax_T1(rho, sys, t)` — per-spin Bloch longitudinal recovery. |
+|                  | Projection on each `Iz_i`; no Liouville superoperator yet.    |
 | `engine.py`      | `EigenSystem`, `fid()`, `stick_spectrum()`, `acquire(...,acq)`. |
 | `processing.py`  | Apodization, FFT with zero-fill, Hz↔ppm axis conversion.      |
 | `regime.py`      | `Regime` dataclass + `HF` / `ZULF` / `LF` factories.          |
 | `acquisition.py` | `Acquisition` dataclass + HF/ZULF presets and constructors.   |
-| `simulate.py`    | High-level `simulate(sys, regime, acq) -> SimulationResult`.  |
+| `simulate.py`    | `simulate(sys, regime, acq) -> SimulationResult`; shared      |
+|                  | `finalize_fid(fid, acq, regime)` used by sequence wrappers.   |
 
 Layering rule: each module imports only from modules above it in this
 table; no cycles. `simulate.py` is the only module that touches all
@@ -457,3 +460,23 @@ This section records architecture-level changes only. Per-change deltas
     functions and `simulate()` share one boilerplate-free path.
   - Authored `docs/SEQUENCES_PLAN.md` (4-layer pulse-sequence roadmap,
     parallel ZULF track, deferred items, milestone gates v0.2–v1.0).
+- **2026-06-02 — Layer 1 sequences + `src/sequences/` package.** Added
+  `pulse_acquire` (`zg`) and `pulse_acquire_decoupled` (`zgpg` / `zgig`,
+  ideal CW decoupling = zero J between observed and decoupled
+  channels). Created `src/sequences/README.md` as the user-facing
+  catalogue; §16.8a now mandates same-commit updates. Fixed a physics
+  bug in `H_rotating`: the heteronuclear J term is now secularly
+  truncated to `Iz·Iz` in the rotating frame (the transverse part
+  oscillates at the Larmor difference and must average out); prior
+  build gave a spurious ~3.5 Hz splitting of inner ¹³C quartet lines.
+- **2026-06-02 — Layer 2 sequences + scalar T1 relaxation.** Added
+  `spin_echo` (`hahnecho`), `inversion_recovery` (`t1ir`), `cpmg`.
+  New optional `SpinSystem.T1` field (per-spin seconds; `None` = no
+  relaxation, backward-compatible). New `src/core/relaxation.py` with
+  `relax_T1(rho, sys, t)` — projection-based per-spin Bloch
+  longitudinal recovery (only the linear `Iz_i` part of ρ is
+  touched). `simulate.finalize_fid(fid, acq, regime)` factored out of
+  `simulate()` so sequence functions share one apodize → FFT → axis
+  path. A full relaxation matrix (Solomon equations, NOE) remains a
+  v1.0 item; per `docs/SEQUENCES_PLAN.md` §4, we also chose the
+  "scalar T1 first" and "skip phase cycling" options.

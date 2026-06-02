@@ -11,6 +11,15 @@ Layer 1 (v0.2) — 1D basics:
 Higher layers (echo, IR, CPMG, 2D HSQC/COSY/TOCSY, ZULF) are added in
 later milestones per `docs/SEQUENCES_PLAN.md`.
 """
-from .oneD import pulse_acquire, pulse_acquire_decoupled
+from .oneD import (
+    pulse_acquire,
+    pulse_acquire_decoupled,
+    spin_echo,
+    inversion_recovery,
+    cpmg,
+)
 
-__all__ = ["pulse_acquire", "pulse_acquire_decoupled"]
+__all__ = [
+    "pulse_acquire", "pulse_acquire_decoupled",
+    "spin_echo", "inversion_recovery", "cpmg",
+]

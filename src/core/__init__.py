@@ -43,7 +43,8 @@ from .pulses import (
     pulse, pulse_x, pulse_y,
     propagator, evolve, apply_unitary,
 )
-from .simulate import simulate, SimulationResult
+from .relaxation import relax_T1
+from .simulate import simulate, SimulationResult, finalize_fid
 
 __all__ = [
     "SpinSystem",
@@ -58,5 +59,6 @@ __all__ = [
     "default_acq_HF_1H", "default_acq_HF_13C", "default_acq_ZULF",
     "pulse", "pulse_x", "pulse_y",
     "propagator", "evolve", "apply_unitary",
-    "simulate", "SimulationResult",
+    "relax_T1",
+    "simulate", "SimulationResult", "finalize_fid",
 ]

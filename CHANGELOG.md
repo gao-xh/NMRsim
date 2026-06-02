@@ -6,6 +6,43 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Added (2026-06-02 — Layer 2 sequences: spin echo / IR / CPMG)
+- `src/sequences/oneD.py` extended with three single-channel multi-pulse
+  sequences:
+  - `spin_echo(sys, regime, acq, *, tau, pulse_phase_180=0.0)` —
+    Hahn echo (`hahnecho`). Refocuses chemical shift; J evolves over
+    the full 2τ.
+  - `inversion_recovery(sys, regime, acq, *, tau)` — T1 measurement
+    (`t1ir`). Uses the new `relax_T1` during the τ delay.
+  - `cpmg(sys, regime, acq, *, tau, n_echoes, pulse_phase_180=π/2)` —
+    CPMG echo train. Default y-phase 180° matches standard CPMG.
+- `src/core/relaxation.py` — new module. `relax_T1(rho, sys, t,
+  observed=None)` applies a per-spin Bloch-style longitudinal recovery
+  along each `Iz_i` axis. Projection-based (no Liouville-space
+  propagator) — only the linear-in-Iz part of ρ is touched; bilinear
+  terms and transverse coherences are left alone. Adequate for IR
+  during a pure-longitudinal delay; a full relaxation matrix is
+  deferred to v1.0.
+- `SpinSystem.T1: np.ndarray | None` — optional per-spin longitudinal
+  relaxation times (s). `None` (default) disables T1 entirely; entries
+  that are `NaN`/non-positive disable that spin only. Backward-
+  compatible with all existing call sites.
+- `src/core/simulate.finalize_fid(fid, acq, regime) -> SimulationResult`
+  — extracted from `simulate()` so sequence functions that build their
+  own FID (echo, IR, CPMG, future 2D loops) share one apodize → FFT →
+  axis pipeline.
+- `tests/test_layer2_echo.py` — 7 regression tests:
+  spin-echo identity on a single ¹H, AX anti-phase at 2τ = 1/(2J),
+  IR T1 fit (recovers input within 1%), IR-without-T1 stays inverted,
+  CPMG n=0 ≡ pulse-acquire, CPMG n=1 ≡ spin_echo with y-phase 180°,
+  CPMG validation.
+- `src/sequences/README.md` — catalogue extended with the three new
+  sequences (signatures, parameters, examples).
+
+### Changed
+- `src/sequences/oneD._zero_heteronuclear_J` now propagates the
+  `T1` field when copying the system.
+
 ### Added (2026-06-02 — Layer 1 sequences: pulse_acquire / zgpg)
 - `src/sequences/` — new package holding named pulse-sequence wrappers
   built on top of `src.core`. Layer 1 (`oneD.py`) ships two sequences:

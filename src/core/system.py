@@ -22,12 +22,20 @@ class SpinSystem:
         For ZULF-only simulations the values are ignored (shifts collapse).
     J_Hz : np.ndarray, shape (N, N)
         Symmetric scalar coupling matrix in Hz. Diagonal must be zero.
+    T1 : np.ndarray, shape (N,), optional
+        Per-spin longitudinal relaxation time in seconds. None (default)
+        means no T1 relaxation is applied. Entries equal to None / NaN /
+        non-positive are treated as "no relaxation for that spin".
+        Used by sequences that need a delay-time longitudinal recovery
+        (e.g. inversion recovery). Transverse relaxation is still
+        modelled through `Acquisition.t2_star`.
     label : str
         Optional human-readable name.
     """
     isotopes: List[str]
     shifts_ppm: np.ndarray
     J_Hz: np.ndarray
+    T1: Optional[np.ndarray] = None
     label: str = ""
 
     # Derived
@@ -37,6 +45,8 @@ class SpinSystem:
         self.n = len(self.isotopes)
         self.shifts_ppm = np.asarray(self.shifts_ppm, dtype=float)
         self.J_Hz = np.asarray(self.J_Hz, dtype=float)
+        if self.T1 is not None:
+            self.T1 = np.asarray(self.T1, dtype=float)
         self._validate()
 
     def _validate(self):
@@ -52,6 +62,10 @@ class SpinSystem:
             raise ValueError("J_Hz must be symmetric")
         if not np.allclose(np.diag(self.J_Hz), 0.0):
             raise ValueError("J_Hz diagonal must be zero")
+        if self.T1 is not None and self.T1.shape != (self.n,):
+            raise ValueError(
+                f"T1 shape {self.T1.shape} != ({self.n},)"
+            )
         for name in self.isotopes:
             iso = iso_table.get(name)
             if iso.spin != 0.5:

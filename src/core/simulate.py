@@ -49,7 +49,19 @@ def simulate(sys: SpinSystem,
     det  = regime.detector(sys)
 
     f = _acquire(H, rho0, det, acq)
+    return finalize_fid(f, acq, regime)
 
+
+def finalize_fid(fid: np.ndarray,
+                 acq: Acquisition,
+                 regime: Regime) -> SimulationResult:
+    """Apodize → FFT → axis conversion → wrap into SimulationResult.
+
+    Shared between `simulate()` and sequence functions that build their
+    own FID (echo, IR, CPMG, 2D wrappers...). Centralizing this here
+    means processing changes only happen in one place.
+    """
+    f = fid
     if acq.apodization == "exponential":
         f = apodize_exponential(f, acq.lb_Hz, acq.dt)
     elif acq.apodization == "gaussian":
@@ -65,8 +77,8 @@ def simulate(sys: SpinSystem,
     if regime.display_unit == "ppm":
         nu0 = regime.larmor_Hz()
         if nu0 != 0.0:
-            carrier_ppm = 0.0  # offset axis is already relative to carrier in HF rotating frame
-            ppm = freq_to_ppm(freq, nu0, carrier_ppm=carrier_ppm)
+            # offset axis is already relative to carrier in HF rotating frame
+            ppm = freq_to_ppm(freq, nu0, carrier_ppm=0.0)
 
     return SimulationResult(
         fid=f, freq_Hz=freq, spectrum=spec, ppm=ppm,

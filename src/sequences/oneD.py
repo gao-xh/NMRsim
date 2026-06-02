@@ -1,17 +1,26 @@
-"""1D pulse sequences (Layer 1 of `docs/SEQUENCES_PLAN.md`).
+"""1D pulse sequences.
 
-These are thin, named wrappers around `simulate()`. They exist so callers
-have a stable API ("run a zg") instead of having to remember which
-combination of regime / state / detector reproduces a given experiment,
-and so later layers (spin echo, INEPT, ...) can compose them.
+Layer 1 — single-event experiments (`pulse_acquire`, `pulse_acquire_decoupled`).
+Layer 2 — multi-pulse single-channel experiments (`spin_echo`,
+`inversion_recovery`, `cpmg`).
+
+These are thin, named wrappers built on `src.core` primitives. They
+exist so callers have a stable API ("run a hahnecho") and so later
+layers can compose them.
 """
 from __future__ import annotations
 
 from typing import Iterable, Optional, Union
 
+import numpy as np
+
 from src.core.acquisition import Acquisition
+from src.core.engine import acquire as _acquire
+from src.core.pulses import apply_unitary, evolve, propagator, pulse
 from src.core.regime import Regime
-from src.core.simulate import SimulationResult, simulate
+from src.core.relaxation import relax_T1
+from src.core.simulate import SimulationResult, finalize_fid, simulate
+from src.core.states import thermal_high_temp
 from src.core.system import SpinSystem
 
 
@@ -98,5 +107,129 @@ def _zero_heteronuclear_J(sys: SpinSystem,
         isotopes=list(sys.isotopes),
         shifts_ppm=sys.shifts_ppm.copy(),
         J_Hz=J,
+        T1=(None if sys.T1 is None else sys.T1.copy()),
         label=(sys.label + " [decoupled]").strip(),
     )
+
+
+# ---------------------------------------------------------------------------
+# Layer 2 — single-channel multi-pulse sequences
+# ---------------------------------------------------------------------------
+
+def _require_observed(regime: Regime, name: str) -> str:
+    if regime.observed is None:
+        raise ValueError(
+            f"{name} requires a regime with an observed channel (e.g. HF(...))."
+        )
+    return regime.observed
+
+
+def _thermal_observed(sys: SpinSystem, observed: str) -> np.ndarray:
+    """Pre-pulse thermal state on the observed channel only."""
+    return thermal_high_temp(sys, observed=observed)
+
+
+def spin_echo(sys: SpinSystem,
+              regime: Regime,
+              acq: Acquisition,
+              *,
+              tau: float,
+              pulse_phase_180: float = 0.0) -> SimulationResult:
+    """Hahn spin-echo: 90°x — τ — 180°φ — τ — acq (Bruker ``hahnecho``).
+
+    The 180° pulse refocuses chemical-shift evolution at the start of
+    acquisition; scalar-coupling evolution accumulates over the full
+    2τ (J-modulation). At ``τ = 1/(2J)`` an AX doublet appears in
+    anti-phase, which is the standard correctness check.
+
+    Parameters
+    ----------
+    tau : half-echo delay (s). The total echo time is 2·tau.
+    pulse_phase_180 : phase of the refocusing pulse, radians. 0 = x.
+
+    Notes
+    -----
+    No T1/T2 relaxation is applied during the τ delays — keep
+    ``acq.t2_star`` for line broadening during acquisition.
+    """
+    obs = _require_observed(regime, "spin_echo")
+    H   = regime.hamiltonian(sys)
+    det = regime.detector(sys)
+
+    rho = _thermal_observed(sys, obs)
+    rho = apply_unitary(rho, pulse(sys, obs, np.pi / 2, 0.0))    # 90°x
+    rho = evolve(rho, H, tau)
+    rho = apply_unitary(rho, pulse(sys, obs, np.pi, pulse_phase_180))  # 180°
+    rho = evolve(rho, H, tau)
+
+    f = _acquire(H, rho, det, acq)
+    return finalize_fid(f, acq, regime)
+
+
+def inversion_recovery(sys: SpinSystem,
+                       regime: Regime,
+                       acq: Acquisition,
+                       *,
+                       tau: float) -> SimulationResult:
+    """Inversion recovery: 180°x — τ — 90°x — acq (Bruker ``t1ir``).
+
+    Signal versus τ recovers as ``1 - 2·exp(-τ/T1)`` for an isolated
+    spin. Requires `sys.T1` to be set; otherwise the τ delay does
+    nothing and every τ gives an inverted spectrum.
+
+    Parameters
+    ----------
+    tau : recovery delay (s).
+    """
+    obs = _require_observed(regime, "inversion_recovery")
+    H   = regime.hamiltonian(sys)
+    det = regime.detector(sys)
+
+    rho = _thermal_observed(sys, obs)
+    rho = apply_unitary(rho, pulse(sys, obs, np.pi, 0.0))        # 180°x
+    rho = relax_T1(rho, sys, tau, observed=obs)                  # T1 recovery
+    rho = apply_unitary(rho, pulse(sys, obs, np.pi / 2, 0.0))    # 90°x readout
+
+    f = _acquire(H, rho, det, acq)
+    return finalize_fid(f, acq, regime)
+
+
+def cpmg(sys: SpinSystem,
+         regime: Regime,
+         acq: Acquisition,
+         *,
+         tau: float,
+         n_echoes: int,
+         pulse_phase_180: float = np.pi / 2) -> SimulationResult:
+    """CPMG echo train: 90°x — [τ — 180°y — τ] × n — acq (Bruker ``cpmg``).
+
+    Train of `n_echoes` refocusing pulses before acquisition. Standard
+    CPMG uses a y-phase 180° (``π/2`` radians) to make the sequence
+    self-correcting against flip-angle imperfections; the default
+    matches that convention.
+
+    Parameters
+    ----------
+    tau : half-echo spacing (s). Total pre-acquisition time = 2·n·τ.
+    n_echoes : number of refocusing 180° pulses (n >= 0).
+    pulse_phase_180 : phase of every refocusing pulse, radians.
+    """
+    if n_echoes < 0:
+        raise ValueError(f"n_echoes must be >= 0, got {n_echoes}")
+    obs = _require_observed(regime, "cpmg")
+    H   = regime.hamiltonian(sys)
+    det = regime.detector(sys)
+
+    rho = _thermal_observed(sys, obs)
+    rho = apply_unitary(rho, pulse(sys, obs, np.pi / 2, 0.0))    # 90°x
+
+    if n_echoes > 0:
+        U_tau = propagator(H, tau)
+        U_180 = pulse(sys, obs, np.pi, pulse_phase_180)
+        for _ in range(n_echoes):
+            rho = apply_unitary(rho, U_tau)
+            rho = apply_unitary(rho, U_180)
+            rho = apply_unitary(rho, U_tau)
+
+    f = _acquire(H, rho, det, acq)
+    return finalize_fid(f, acq, regime)
