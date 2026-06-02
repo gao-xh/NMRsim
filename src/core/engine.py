@@ -106,3 +106,17 @@ def fid(
     if t2_star is not None and t2_star > 0:
         fid = fid * np.exp(-t / t2_star)
     return fid
+
+
+def acquire(H: np.ndarray,
+            rho: np.ndarray,
+            detect: np.ndarray,
+            acq) -> np.ndarray:
+    """Thin wrapper: take an already-prepared ρ and an Acquisition object,
+    return the FID. Lets sequence code stay regime/acquisition-agnostic.
+
+    `acq` is duck-typed (any object exposing `n_points`, `dt`, `t2_star`)
+    to avoid a circular import on `acquisition.Acquisition`.
+    """
+    return fid(H, rho, detect,
+               n_points=acq.n_points, dt=acq.dt, t2_star=acq.t2_star)

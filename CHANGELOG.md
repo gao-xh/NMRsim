@@ -6,7 +6,59 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
-### Added
+### Added (2026-06-02 — regime / acquisition / pulse layer)
+- `docs/SEQUENCES_PLAN.md` — roadmap for pulse-sequence coverage
+  (4 layers from 1D basics to 2D, plus a parallel ZULF track and
+  deferred items), per-layer acceptance tests, and milestone gates
+  v0.2 → v1.0.
+- `src/core/regime.py` — `Regime` data class + `HF(B0_T, observed,
+  carrier_ppm)` / `ZULF()` / `LF(B0_T)` factories. Bundles
+  (Hamiltonian, ρ₀, detector, display unit) so HF↔ZULF is one line
+  in user code and a future LF / Earth-field regime is just another
+  factory.
+- `src/core/acquisition.py` — frozen `Acquisition` data class
+  (n_points, dt, t2_star, zero_fill, apodization, lb_Hz, gb_Hz,
+  half_first) with derived `sw_Hz` / `aq_s` and factories
+  `from_sw_aq` (HF) / `from_bw_duration` (ZULF) / `with_(...)`.
+  Three starter presets: `default_acq_HF_1H(B0)`,
+  `default_acq_HF_13C(B0)`, `default_acq_ZULF()`.
+- `src/core/simulate.py` — high-level `simulate(sys, regime, acq)
+  -> SimulationResult` collapsing the (build H → ρ₀ → detect → FID
+  → apodize → FFT → axis) boilerplate; result carries fid, freq_Hz,
+  spectrum, ppm (HF only), and the input regime/acquisition for
+  reproducibility.
+- `src/core/pulses.py` — coherent-manipulation primitives:
+  `pulse(sys, channel, angle, phase)` (ideal hard pulse, channel
+  by isotope name / index / index list), shortcuts `pulse_x` /
+  `pulse_y`, `propagator(H, t)`, `evolve(rho, H, t)`,
+  `apply_unitary(rho, U)`. Reserved extension points (stubs,
+  raise `NotImplementedError`): `ShapedPulse` protocol (v0.6+),
+  `Event` protocol and `run_sequence()` (v0.5+).
+- `src/core/engine.py` — `acquire(H, rho, detect, acq)` thin wrapper
+  over `fid` that takes an `Acquisition`; used by `simulate()` and
+  by future sequence functions.
+
+### Changed
+- Top-level `src/core/__init__.py` API surface now leads with the
+  parameter-object workflow:
+  `sys = SpinSystem(...)` → `regime = HF(...)` / `ZULF()` →
+  `acq = Acquisition.from_sw_aq(...)` → `simulate(sys, regime, acq)`.
+  Loose numbers like `dt=1/4000, n_points=8192` no longer appear in
+  the recommended path. Low-level functions (`H_rotating`,
+  `thermal_high_temp`, `fid`, …) stay exported for advanced use.
+- `Regime.HF(...)` initial state is now the *post-90°x* state on
+  the observed channel (true pulse-acquire equivalent), so
+  `simulate(sys, HF(...), acq)` returns a non-zero spectrum
+  directly. Previously it returned thermal Iz, which is orthogonal
+  to `I+` and produced an all-zero FID.
+
+### Fixed
+- HF `simulate()` returning empty spectrum: documented under
+  "Changed" above. Verified that `simulate(sys, HF(...), acq)` and
+  the manual `thermal → 90°x → acquire(H, ρ, det, acq)` chain
+  produce numerically identical FIDs (`np.allclose`).
+
+### Added (2026-06-01 — initial engine scaffold)
 - `AGENT_GUIDE.md` — project-wide engineering conventions distilled from
   prior ZULF / Multi-system Spinach UI work, plus a project-specific
   architecture section (units, module layout, HF↔ZULF knob table,
