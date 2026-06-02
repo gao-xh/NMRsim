@@ -8,17 +8,19 @@ seq(sys: SpinSystem, regime: Regime, acq: Acquisition, **kw) -> SimulationResult
 
 下表列出当前已实现的所有序列。
 
-| 序列 | 文件 | Bruker 名 | 简介 |
-|---|---|---|---|
-| `pulse_acquire` | [`oneD.py`](oneD.py) | `zg` | 标准单脉冲采集。 |
-| `pulse_acquire_decoupled` | [`oneD.py`](oneD.py) | `zgpg` / `zgig` | 理想 CW 异核去耦下的单脉冲采集。 |
-| `spin_echo` | [`oneD.py`](oneD.py) | `hahnecho` | Hahn 自旋回波：90°x — τ — 180° — τ — acq。 |
-| `inversion_recovery` | [`oneD.py`](oneD.py) | `t1ir` | 反转恢复 T1 测量：180°x — τ — 90°x — acq。 |
-| `cpmg` | [`oneD.py`](oneD.py) | `cpmg` | CPMG 回波链：90°x — [τ — 180°y — τ]·n — acq。 |
+| 实现的序列 | 函数 | 文件 | Bruker 名 | 简介 |
+|---|---|---|---|---|
+| 标准单脉冲采集 (1D pulse-acquire) | `pulse_acquire` | [`oneD.py`](oneD.py) | `zg` | 标准单脉冲采集。 |
+| 异核去耦单脉冲采集 (1D with heteronuclear decoupling) | `pulse_acquire_decoupled` | [`oneD.py`](oneD.py) | `zgpg` / `zgig` | 理想 CW 异核去耦下的单脉冲采集。 |
+| Hahn 自旋回波 (spin echo) | `spin_echo` | [`oneD.py`](oneD.py) | `hahnecho` | Hahn 自旋回波：90°x — τ — 180° — τ — acq。 |
+| 反转恢复 T1 测量 (inversion recovery) | `inversion_recovery` | [`oneD.py`](oneD.py) | `t1ir` | 反转恢复 T1 测量：180°x — τ — 90°x — acq。 |
+| CPMG 回波链 (Carr–Purcell–Meiboom–Gill) | `cpmg` | [`oneD.py`](oneD.py) | `cpmg` | CPMG 回波链：90°x — [τ — 180°y — τ]·n — acq。 |
+| 异核单量子相关谱 (HSQC, 2D) | `hsqc` | [`hetcor.py`](hetcor.py) | `hsqcetgp` | 异核单量子相关 2D：INEPT — t1(180° obs refocus) — reverse INEPT — acq。 |
+| 异核多键相关谱 (HMBC, 2D) | `hmbc` | [`hetcor.py`](hetcor.py) | `hmbcgplpndqf` | 异核多键 (long-range) 相关 2D：τ = 1/(4·nJ_CH)，其它与 HSQC 同构。 |
 
 ---
 
-## `pulse_acquire` — 标准 1D 采集 (`zg`)
+## 标准单脉冲采集 — `pulse_acquire` (`zg`)
 
 执行 `regime` 默认的脉冲-采集流程（HF 下等价于 90°x — acq）。
 
@@ -42,7 +44,7 @@ result = pulse_acquire(sys, regime, acq)
 
 ---
 
-## `pulse_acquire_decoupled` — 异核去耦采集 (`zgpg` / `zgig`)
+## 异核去耦单脉冲采集 — `pulse_acquire_decoupled` (`zgpg` / `zgig`)
 
 模拟理想（无限带宽、无残余裂分）的连续波异核去耦：把 `regime.observed`
 与所有被去耦核之间的标量耦合在整个实验里置零。观测核内部的同核耦合保留。
@@ -79,7 +81,7 @@ result = pulse_acquire_decoupled(sys, regime, acq, decouple='1H') # 等价显式
 
 ---
 
-## `spin_echo` — Hahn 自旋回波 (`hahnecho`)
+## Hahn 自旋回波 — `spin_echo` (`hahnecho`)
 
 `90°x — τ — 180°φ — τ — acq`。化学位移在采集起点被重聚；标量耦合在 2τ
 内继续演化（J 调制）。常用判据：AX 体系在 `2τ = 1/(2J)`（即 `τ = 1/(4J)`）
@@ -109,7 +111,7 @@ r = spin_echo(sys, regime, acq, tau=1.0 / (4.0 * 7.0))  # 反相点
 
 ---
 
-## `inversion_recovery` — 反转恢复 (`t1ir`)
+## 反转恢复 T1 测量 — `inversion_recovery` (`t1ir`)
 
 `180°x — τ — 90°x — acq`。延迟 τ 期间施加按自旋的标量 T1 弛豫（依
 `sys.T1`），用于扫描 τ 反演恢复曲线、拟合 T1。若 `sys.T1 is None`，τ
@@ -142,7 +144,7 @@ S = [inversion_recovery(sys, regime, acq, tau=t).fid[0].imag for t in taus]
 
 ---
 
-## `cpmg` — CPMG 回波链 (`cpmg`)
+## CPMG 回波链 — `cpmg` (`cpmg`)
 
 `90°x — [τ — 180°y — τ]·n — acq`。默认 180° 脉冲取 y 相（标准 CPMG），
 对小角度误差自校正。`n_echoes=0` 时退化为 `pulse_acquire`；`n_echoes=1`
@@ -169,4 +171,83 @@ regime = HF(B0_T=9.4, observed='1H', carrier_ppm=2.0)
 acq = Acquisition.from_sw_aq(SW_Hz=4800, AQ_s=2.0, t2_star=0.5, zero_fill=2)
 
 r = cpmg(sys, regime, acq, tau=0.005, n_echoes=16)
+```
+
+---
+
+## 异核单量子相关谱 — `hsqc` (`hsqcetgp`)
+
+二维异核相关：F1 = 间接核（如 ¹³C）化学位移，F2 = 观测核（如 ¹H）。
+骨架为 `INEPT — t1(中央 180° 观测核重聚) — reverse INEPT — acq`，t1
+方向采用 States 超复数正交（两次 90°(indirect)：+x 给 cos 集，-y 给
+sin 集），两套 FID 合成后做 2D FFT，得到纯吸收型 2D 谱。返回
+`SimulationResult2D`（包含 `spectrum`、`freq_F1_Hz`、`freq_F2_Hz`、
+`ppm_F1`、`ppm_F2`）。
+
+**签名**
+```python
+hsqc(sys, regime, acq2d, *, indirect='13C', J_CH,
+     decouple_during_acq=True) -> SimulationResult2D
+```
+
+**参数**
+- `acq2d`：`Acquisition2D(t1=..., t2=...)`，分别控制间接维与直接维的
+  采样（`dt`、`n_points`、零填充、apodization 等）。
+- `indirect`：间接核同位素标签（默认 `'13C'`）。
+- `J_CH`：观测核–间接核之间的单键 J（Hz）；决定 INEPT 时延
+  `τ = 1/(4·J_CH)`。
+- `decouple_during_acq`：若为 True（默认），t2 采集期间将观测核与间接核
+  之间的 J 置零（理想 CW 去耦），每个交叉峰在 F2 上是单峰。
+
+**调用示例**
+```python
+import numpy as np
+from src.core import HF, Acquisition, Acquisition2D, SpinSystem
+from src.sequences import hsqc
+
+sys = SpinSystem(['1H','13C'], [4.0, 50.0], [[0, 140.0],[140.0, 0]])
+regime = HF(B0_T=9.4, observed='1H', carrier_ppm=0.0)
+acq2d = Acquisition2D(
+    t1=Acquisition(n_points=64,  dt=1/16000, zero_fill=2, half_first=True),
+    t2=Acquisition(n_points=1024, dt=1/6000,  zero_fill=2, half_first=True),
+)
+
+res = hsqc(sys, regime, acq2d, indirect='13C', J_CH=140.0)
+# res.spectrum: (n_F1, n_F2) 复数 2D 谱；res.ppm_F1 / res.ppm_F2 用于绘图
+```
+
+---
+
+## 异核多键相关谱 — `hmbc` (`hmbcgplpndqf`)
+
+与 `hsqc` 同一骨架，仅把 INEPT 时延改为 `τ = 1/(4·J_long)` 以匹配长程
+²J/³J_CH（典型 4–10 Hz）；用于检测非直接键合的远程相关峰。简化版本
+未实现 low-pass J 滤波器，故 ¹J_CH 峰可能残留（当 ¹J 不接近 sin 零点
+时）。`decouple_during_acq` 默认为 False，以保留 F2 上的 ¹J_CH 裂分
+（与真实 HMBC 习惯一致）。
+
+**签名**
+```python
+hmbc(sys, regime, acq2d, *, indirect='13C', J_long=8.0,
+     decouple_during_acq=False) -> SimulationResult2D
+```
+
+**调用示例**
+```python
+import numpy as np
+from src.core import HF, Acquisition, Acquisition2D, SpinSystem
+from src.sequences import hmbc
+
+# 1H 4 ppm 既与 C-1 (1J=140) 又与 C-2 (2J=8) 耦合
+J = np.zeros((3, 3))
+J[0,1] = J[1,0] = 140.0; J[0,2] = J[2,0] = 8.0
+sys = SpinSystem(['1H','13C','13C'], [4.0, 50.0, 100.0], J)
+regime = HF(B0_T=9.4, observed='1H', carrier_ppm=0.0)
+acq2d  = Acquisition2D(
+    t1=Acquisition(n_points=128, dt=1/24000, zero_fill=2, half_first=True),
+    t2=Acquisition(n_points=1024, dt=1/4000, zero_fill=2, half_first=True),
+)
+
+res = hmbc(sys, regime, acq2d, indirect='13C', J_long=8.0)
+# 主峰位于 (4 ppm in F2, 100 ppm in F1) —— 长程相关
 ```

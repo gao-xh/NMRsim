@@ -6,6 +6,48 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Added (2026-06-02 — Layer 3 sequences: HSQC + HMBC + 2D framework)
+- `src/core/acquisition.Acquisition2D` — frozen dataclass bundling a
+  `t1` (indirect) and `t2` (direct) `Acquisition`. Exposed via
+  `src.core` and consumed by every 2D sequence.
+- `src/core/processing.fft2_hypercomplex(S_cos, S_sin, *, dt_t1, dt_t2,
+  ...)` — States hypercomplex 2D FFT. FT along t2 of each modulation
+  set, form `Ã + i·B̃` along t1, complex FT along t1. Returns one-sided
+  F1 axis (no axial mirror) — i.e. pure 2D absorption shape.
+- `src/core/simulate.SimulationResult2D` + `finalize_2d(fid_cos,
+  fid_sin, acq2d, regime, *, indirect)` — shared 2D finishing path
+  (apodize → hypercomplex FT → Hz / ppm axes for both dimensions).
+  Mirrors the `finalize_fid` pattern from Layer 2.
+- `src/sequences/twoD.py` — `acquire2d_hypercomplex(one_point, acq2d)`
+  generic loop that calls a user-supplied `one_point(t1, quadrature)`
+  for every t1 × {cos, sin} and stacks the FIDs.
+- `src/sequences/hetcor.py` — Layer 3 heteronuclear correlation
+  sequences:
+  - `hsqc(sys, regime, acq2d, *, indirect='13C', J_CH,
+    decouple_during_acq=True)` — HSQC (`hsqcetgp`). Skeleton:
+    `INEPT — t1 (with central 180°(observed) refocus) — reverse INEPT —
+    acq`. Cosine / sine sets via ±x / −y phase on the first
+    `90°(indirect)` pulse. Optional ideal CW decoupling during t2
+    re-uses `_zero_heteronuclear_J` from Layer 1.
+  - `hmbc(sys, regime, acq2d, *, indirect='13C', J_long=8.0,
+    decouple_during_acq=False)` — HMBC (`hmbcgplpndqf`). Same skeleton
+    with τ tuned to long-range J. Low-pass J filter not modelled.
+- `tests/test_layer3_hsqc.py` — three regression tests:
+  single CH pair → one cross peak at (δ_H, δ_C);
+  two non-coupled CH pairs → two cross peaks at the right positions;
+  HMBC with τ = 1/(4·8 Hz) on a 1J + 2J system picks up the long-range
+  cross peak as the dominant signal.
+- `src/sequences/README.md` — catalogue extended with the two new 2D
+  sequences (signature, parameters, example).
+
+### Not modelled (intentional, per `docs/SEQUENCES_PLAN.md`)
+- Phase cycling — the density-matrix simulation already gives the
+  desired coherence pathway.
+- Gradient coherence selection.
+- Realistic composite-pulse decoupling (WALTZ-16, GARP) — only the
+  J = 0 limit is implemented.
+- Echo-antiecho quadrature — only States is supported.
+
 ### Added (2026-06-02 — Layer 2 sequences: spin echo / IR / CPMG)
 - `src/sequences/oneD.py` extended with three single-channel multi-pulse
   sequences:

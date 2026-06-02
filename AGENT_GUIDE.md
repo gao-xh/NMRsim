@@ -308,10 +308,12 @@ Reference Hamiltonians:
 |                  | Projection on each `Iz_i`; no Liouville superoperator yet.    |
 | `engine.py`      | `EigenSystem`, `fid()`, `stick_spectrum()`, `acquire(...,acq)`. |
 | `processing.py`  | Apodization, FFT with zero-fill, Hz↔ppm axis conversion.      |
+|                  | `fft2_hypercomplex(S_cos, S_sin, ...)` — States 2D FFT.       |
 | `regime.py`      | `Regime` dataclass + `HF` / `ZULF` / `LF` factories.          |
-| `acquisition.py` | `Acquisition` dataclass + HF/ZULF presets and constructors.   |
+| `acquisition.py` | `Acquisition` + presets; `Acquisition2D` bundling t1+t2.      |
 | `simulate.py`    | `simulate(sys, regime, acq) -> SimulationResult`; shared      |
 |                  | `finalize_fid(fid, acq, regime)` used by sequence wrappers.   |
+|                  | `SimulationResult2D` + `finalize_2d(...)` for 2D sequences.   |
 
 Layering rule: each module imports only from modules above it in this
 table; no cycles. `simulate.py` is the only module that touches all
@@ -392,7 +394,7 @@ High-level milestones below mirror that plan:
   `spin_echo`, `inversion_recovery`, `cpmg`. T1 field on `SpinSystem`.
 - v0.3 — Multi-component mixing (weighted sum of `SpinSystem`s), basic
   matplotlib viewer.
-- v0.4 — 2D module: `hsqc`, `hmbc`; generic 2D wrapper + `fft2_spectrum`.
+- v0.4 — 2D module: `hsqc`, `hmbc`; generic 2D wrapper + `fft2_hypercomplex` (done).
 - v0.5 — `cosy`, `tocsy`. Optional sequence-DSL (`Event` / `run_sequence`).
 - v0.6 — Minimal Qt UI: edit `SpinSystem` + pick `Regime` + pick `Acquisition`
   + run any sequence + compare.
@@ -480,3 +482,20 @@ This section records architecture-level changes only. Per-change deltas
   path. A full relaxation matrix (Solomon equations, NOE) remains a
   v1.0 item; per `docs/SEQUENCES_PLAN.md` §4, we also chose the
   "scalar T1 first" and "skip phase cycling" options.
+- **2026-06-02 — Layer 3 sequences + 2D framework.** Added the first
+  2D heteronuclear correlation sequences: `hsqc` (`hsqcetgp`) and
+  `hmbc` (`hmbcgplpndqf`), both in `src/sequences/hetcor.py`. Shared
+  building blocks land in core:
+  - `acquisition.Acquisition2D` (bundles t1 + t2 `Acquisition`s).
+  - `processing.fft2_hypercomplex(...)` (States hypercomplex 2D FFT,
+    one-sided F1, pure 2D absorption).
+  - `simulate.SimulationResult2D` + `finalize_2d(...)` — the
+    2D analogue of `finalize_fid`; every future 2D sequence (COSY,
+    TOCSY, NOESY) goes through it.
+  - `sequences/twoD.acquire2d_hypercomplex(one_point, acq2d)` is the
+    generic t1 × {cos, sin} loop.
+  Per `docs/SEQUENCES_PLAN.md` §4 we deliberately do not model phase
+  cycling, gradient coherence selection, composite-pulse decoupling
+  (WALTZ-16 / GARP), or echo-antiecho quadrature — the density-matrix
+  simulation already gives the desired pathway, and the ideal-CW
+  decoupling limit (`_zero_heteronuclear_J`) is sufficient for v0.4.

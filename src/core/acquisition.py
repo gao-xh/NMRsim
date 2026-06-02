@@ -130,3 +130,27 @@ def default_acq_ZULF(*, BW_Hz: float = 200.0, T_s: float = 10.0,
                      t2_star: float = 2.0) -> Acquisition:
     """Default ZULF acquisition: BW = 200 Hz, T = 10 s."""
     return Acquisition.from_bw_duration(BW_Hz=BW_Hz, T_s=T_s, t2_star=t2_star)
+
+
+# ---------------------------------------------------------------------------
+# 2D acquisition
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class Acquisition2D:
+    """Bundles two 1D `Acquisition`s, one per dimension.
+
+    Convention: `t1` is the indirect (incremented) dimension, `t2` is the
+    directly acquired dimension. Mirrors the F1 / F2 axes of the resulting
+    spectrum.
+    """
+    t1: Acquisition
+    t2: Acquisition
+
+    @property
+    def n_t1(self) -> int:
+        return self.t1.n_points
+
+    @property
+    def n_t2(self) -> int:
+        return self.t2.n_points

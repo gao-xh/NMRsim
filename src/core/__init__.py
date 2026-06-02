@@ -30,11 +30,13 @@ from .processing import (
     apodize_exponential,
     apodize_gaussian,
     fft_spectrum,
+    fft2_hypercomplex,
     freq_to_ppm,
 )
 from .regime import Regime, HF, ZULF, LF
 from .acquisition import (
     Acquisition,
+    Acquisition2D,
     default_acq_HF_1H,
     default_acq_HF_13C,
     default_acq_ZULF,
@@ -44,7 +46,10 @@ from .pulses import (
     propagator, evolve, apply_unitary,
 )
 from .relaxation import relax_T1
-from .simulate import simulate, SimulationResult, finalize_fid
+from .simulate import (
+    simulate, SimulationResult, finalize_fid,
+    SimulationResult2D, finalize_2d,
+)
 
 __all__ = [
     "SpinSystem",
@@ -53,12 +58,13 @@ __all__ = [
     "detect_Iplus", "detect_Mx", "detect_Mz",
     "fid", "stick_spectrum", "EigenSystem", "acquire",
     "apodize_exponential", "apodize_gaussian",
-    "fft_spectrum", "freq_to_ppm",
+    "fft_spectrum", "fft2_hypercomplex", "freq_to_ppm",
     "Regime", "HF", "ZULF", "LF",
-    "Acquisition",
+    "Acquisition", "Acquisition2D",
     "default_acq_HF_1H", "default_acq_HF_13C", "default_acq_ZULF",
     "pulse", "pulse_x", "pulse_y",
     "propagator", "evolve", "apply_unitary",
     "relax_T1",
     "simulate", "SimulationResult", "finalize_fid",
+    "SimulationResult2D", "finalize_2d",
 ]

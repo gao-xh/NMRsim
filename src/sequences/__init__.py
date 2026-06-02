@@ -18,8 +18,12 @@ from .oneD import (
     inversion_recovery,
     cpmg,
 )
+from .twoD import acquire2d_hypercomplex
+from .hetcor import hsqc, hmbc
 
 __all__ = [
     "pulse_acquire", "pulse_acquire_decoupled",
     "spin_echo", "inversion_recovery", "cpmg",
+    "acquire2d_hypercomplex",
+    "hsqc", "hmbc",
 ]
