@@ -1,13 +1,14 @@
 """Layer 5 regression tests (`docs/SEQUENCES_PLAN.md`).
 
 Acceptance:
-- Heteronuclear AX [¹H, ¹³C], J = 140 Hz, ZULF pulse-acquire: spectrum
-  has a single line at f = |J| = 140 Hz (singlet–triplet transition).
-- Homonuclear AX [¹H, ¹H], J = 7 Hz, ZULF pulse-acquire: spectrum has
-  only DC; no peak at f = J (Σγ_i I_x is proportional to total F_x,
-  which commutes with H_J for identical γ).
-- DC pulse round-trip: prepolarized along z + an ideal π/2 pulse on
-  −y reproduces the prepolarized-x FID exactly.
+- Heteronuclear AX [¹H, ¹³C], J = 140 Hz, ZULF pulse-acquire under the
+    default z/Mz convention: spectrum has a single line at f = |J| = 140 Hz
+    (singlet–triplet transition).
+- Homonuclear AX [¹H, ¹H], J = 7 Hz, ZULF pulse-acquire under the default
+    z/Mz convention: spectrum has only DC; no peak at f = J (Σγ_i I_z is
+    proportional to total F_z, which commutes with H_J for identical γ).
+- DC pulse round-trip: explicit prepolarized-z + ideal π/2 on +y
+    reproduces the explicit prepolarized-x / Mx FID exactly.
 - Physical (B_T, duration_s) DC pulse with γB ≫ J converges to the
   ideal hard-pulse result.
 """
@@ -65,8 +66,8 @@ def test_zulf_heteronuclear_AX_peak_at_J():
 
 
 def test_zulf_homonuclear_AX_has_no_J_peak():
-    """Two ¹H, J=7 Hz: prepolarized_x ∝ F_x commutes with H_J, so
-    the FID is constant — only DC, no line at 7 Hz."""
+    """Two ¹H, J=7 Hz: default prepolarized_z / Mz is proportional to F_z,
+    which commutes with H_J, so the FID is constant — only DC."""
     sys = SpinSystem(
         isotopes=['1H', '1H'],
         shifts_ppm=[0.0, 0.0],
@@ -84,7 +85,7 @@ def test_zulf_homonuclear_AX_has_no_J_peak():
 
 
 def test_zulf_dc_pulse_ideal_round_trip():
-    """prepolarized_z + ideal π/2 on −y == prepolarized_x, then equal FIDs."""
+    """Explicit z/Mz preparation plus π/2 on +y reproduces explicit x/Mx."""
     sys = SpinSystem(
         isotopes=['1H', '1H'],
         shifts_ppm=[0.0, 0.0],

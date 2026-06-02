@@ -12,9 +12,9 @@ Layer 5 (v0.6) — three named sequences:
 
 All three return a standard `SimulationResult`. The regime is typically
 `ZULF()` (true zero field) or `LF(B0_T=...)` (small bias field, lab
-frame); both share the prepolarized initial state and Mx detector by
-default. Callers may override `initial` and `detect` to study other
-preparation / detection schemes.
+frame); both share the project-wide default convention of z-polarized
+preparation and z-axis detection. Callers may override `initial` and
+`detect` to study other preparation / detection schemes.
 """
 from __future__ import annotations
 
@@ -69,17 +69,17 @@ def zulf_pulse_acquire(sys: SpinSystem,
                        regime: Regime,
                        acq: Acquisition,
                        *,
-                       initial: InitialSpec = 'x',
-                       detect: DetectSpec = 'Mx') -> SimulationResult:
-    """Prepolarized ZULF pulse-acquire (no RF pulse, sudden-drop model).
+                       initial: InitialSpec = 'regime',
+                       detect: DetectSpec = 'regime') -> SimulationResult:
+    """Prepolarized ZULF pulse-acquire (no RF pulse).
 
     Pipeline: ρ₀ → free evolution under ``regime.hamiltonian(sys)`` for
     the acquisition window → detector trace gives FID.
 
-    Defaults reproduce the standard ZULF magnetometer experiment: a
-    sample prepolarized at high field is suddenly transferred to zero
-    (or near-zero) field along x, then magnetization along x is read out
-    by a SQUID / OPM.
+    Defaults follow the regime's axis convention. For `ZULF()` / `LF()`
+    that means z-polarized preparation and z-axis detection; use
+    ``initial='x'`` and/or ``detect='Mx'`` explicitly when you want a
+    transverse-prepared experiment.
     """
     H    = regime.hamiltonian(sys)
     rho0 = _resolve_initial(sys, regime, initial)
@@ -101,8 +101,8 @@ def zulf_j_spectrum(sys: SpinSystem,
                     T_s: float = 10.0,
                     t2_star: float = 2.0,
                     lb_Hz: float = 0.5,
-                    initial: InitialSpec = 'x',
-                    detect: DetectSpec = 'Mx') -> SimulationResult:
+                    initial: InitialSpec = 'regime',
+                    detect: DetectSpec = 'regime') -> SimulationResult:
     """ZULF J-spectroscopy — long-AQ pulse-acquire with narrow bandwidth.
 
     Convenience wrapper around :func:`zulf_pulse_acquire`. Defaults match
@@ -132,8 +132,8 @@ def zulf_dc_pulse_acquire(sys: SpinSystem,
                           duration_s: Optional[float] = None,
                           flip_angle: Optional[float] = None,
                           phase: float = 0.0,
-                          initial: InitialSpec = 'z',
-                          detect: DetectSpec = 'Mx',
+                          initial: InitialSpec = 'regime',
+                          detect: DetectSpec = 'regime',
                           ideal: bool = False) -> SimulationResult:
     """ZULF DC-pulse acquire: prepolarize → DC pulse on `channel` → acquire.
 
@@ -157,8 +157,8 @@ def zulf_dc_pulse_acquire(sys: SpinSystem,
     ----------
     channel : isotope label, e.g. '1H' or '13C'.
     phase   : pulse phase in radians (0 = +x, π/2 = +y).
-    initial : default 'z' (prepolarized along z, before the pulse).
-    detect  : default 'Mx'.
+    initial : default 'regime' (z for `ZULF()` / `LF()`).
+    detect  : default 'regime' (Mz for `ZULF()` / `LF()`).
     """
     if flip_angle is None and (B_T is None or duration_s is None):
         raise ValueError(

@@ -35,9 +35,9 @@ from typing import Callable, Optional
 import numpy as np
 
 from . import isotopes as iso_table
-from .detection import detect_Iplus, detect_Mx
+from .detection import detect_Iplus, detect_Mz
 from .hamiltonian import H_J_only, H_lab, H_rotating
-from .states import prepolarized_x, thermal_high_temp
+from .states import prepolarized_z, thermal_high_temp
 from .system import SpinSystem
 
 
@@ -114,12 +114,17 @@ def HF(B0_T: float,
 
 
 def ZULF() -> Regime:
-    """True zero-field: pure J Hamiltonian, prepolarized state, M_x detection."""
+    """True zero-field: pure J Hamiltonian, prepolarized-z state, M_z detection.
+
+    The project-wide coordinate convention is that the polarizing magnet
+    and the zero-field region share the same axes; the prepared state is
+    therefore aligned with z unless a sequence applies an explicit pulse.
+    """
     return Regime(
         name="ZULF",
         hamiltonian=H_J_only,
-        initial_state=prepolarized_x,
-        detector=lambda s: detect_Mx(s, weighted=True),
+        initial_state=prepolarized_z,
+        detector=lambda s: detect_Mz(s, weighted=True),
         observed=None,
         B0_T=0.0,
         requires_observed=False,
@@ -129,7 +134,7 @@ def ZULF() -> Regime:
 
 def LF(B0_T: float) -> Regime:
     """Low-field / ULF lab-frame: Zeeman + J in the lab frame, ZULF-style
-    prepolarized initial state and magnetometer detection.
+    prepolarized-z initial state and z-axis magnetometer detection.
 
     Use when there is a small bias field and you do not want to enter a
     rotating frame.
@@ -137,8 +142,8 @@ def LF(B0_T: float) -> Regime:
     return Regime(
         name="LF",
         hamiltonian=lambda s: H_lab(s, B0_T),
-        initial_state=prepolarized_x,
-        detector=lambda s: detect_Mx(s, weighted=True),
+        initial_state=prepolarized_z,
+        detector=lambda s: detect_Mz(s, weighted=True),
         observed=None,
         B0_T=B0_T,
         requires_observed=False,

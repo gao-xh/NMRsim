@@ -348,8 +348,8 @@ they are bundled by the `Regime` abstraction (`src/core/regime.py`):
 | Knob               | High field (`HF`)                      | ZULF (`ZULF`)            |
 |--------------------|----------------------------------------|--------------------------|
 | Hamiltonian        | `H_rotating(sys, B0, observed)`        | `H_J_only(sys)`          |
-| Initial state ρ₀   | thermal → 90°x on `observed` (auto)    | `prepolarized_x(sys)`    |
-| Detection operator | `detect_Iplus(observed)`               | `detect_Mx()`            |
+| Initial state ρ₀   | thermal → 90°x on `observed` (auto)    | `prepolarized_z(sys)`    |
+| Detection operator | `detect_Iplus(observed)`               | `detect_Mz()`            |
 | Display unit       | ppm (via `regime.larmor_Hz()`)         | Hz                       |
 
 Adding another regime (low field with bias, Earth field, ...) means

@@ -8,15 +8,18 @@ versions follow SemVer once we tag a first release.
 
 ### Added (2026-06-02 — Layer 5 sequences: ZULF)
 - `src/sequences/zulf.py` — three new ZULF / low-field 1D sequences:
-  - `zulf_pulse_acquire(sys, regime, acq, *, initial='x', detect='Mx')`
-    — sudden-drop pulse-acquire (prepolarize → free evolution → M_x
-    detect). Works for `ZULF()` (true zero field) and `LF(B0_T=...)`.
+  - `zulf_pulse_acquire(sys, regime, acq, *, initial='regime',
+    detect='regime')` — default pulse-acquire now follows the shared
+    z-axis convention (prepolarize-z → free evolution → M_z detect).
+    Explicit transverse experiments remain available via
+    `initial='x'` / `detect='Mx'`. Works for `ZULF()` (true zero field)
+    and `LF(B0_T=...)`.
   - `zulf_j_spectrum(sys, regime=None, acq=None, *, BW_Hz=200, T_s=10,
     t2_star=2.0, lb_Hz=0.5, ...)` — convenience wrapper preset for
     narrow-bandwidth J-spectroscopy.
   - `zulf_dc_pulse_acquire(sys, regime, acq, *, channel, B_T=None,
-    duration_s=None, flip_angle=None, phase=0.0, initial='z',
-    detect='Mx', ideal=False)` — applies a DC pulse on one channel
+    duration_s=None, flip_angle=None, phase=0.0, initial='regime',
+    detect='regime', ideal=False)` — applies a DC pulse on one channel
     and acquires. Either physical knobs (`B_T`, `duration_s`) or
     `flip_angle` may be given; `flip_angle` wins as a hard-pulse
     shortcut.
@@ -30,7 +33,7 @@ versions follow SemVer once we tag a first release.
 - `tests/test_layer5_zulf.py` — 4 regression tests:
   heteronuclear ¹H-¹³C J=140 Hz peak position, homonuclear ¹H₂ DC-only
   (F_x commutes with H_J), DC-pulse ideal round-trip
-  (prepolarized_z + π/2 on +y ≡ prepolarized_x), and physical
+  (explicit `prepolarized_z + π/2 on +y ≡ prepolarized_x/M_x` override), and physical
   (B_T, duration_s) DC pulse converging to the ideal hard pulse in
   the γB ≫ J limit.
 - `src/sequences/README.md` — catalogue extended with the three ZULF

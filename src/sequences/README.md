@@ -333,21 +333,23 @@ res = tocsy(sys, regime, acq2d, mixing_time=0.080)
 
 ## ZULF 单脉冲采集 — `zulf_pulse_acquire`
 
-零/超低场标准实验：样品在高场内预极化，突然切到零场（或弱偏置场），
-沿 x 方向的总磁化在 `H_J_only`（或 `H_lab(B0)`）下自由演化，由磁强计
-探测 `M_x = Σ γ_i I_{x,i}` 信号。本封装实现 sudden-drop 模型：
-直接以 `regime.initial_state(sys)` 作为 ρ₀，无 RF 脉冲。
+零/超低场标准实验：样品在高场内预极化，然后在零场（或弱偏置场）区
+直接自由演化。项目当前统一坐标约定为：极化装置与零场区共用同一套坐标轴，
+因此默认 `regime.initial_state(sys)` 为 z 轴预极化态，默认检测为
+`M_z = Σ γ_i I_{z,i}`。若要研究横向制备 / 横向检测，可显式传
+`initial='x'` / `detect='Mx'`。
 
 **签名**
 ```python
-zulf_pulse_acquire(sys, regime, acq, *, initial='x', detect='Mx') -> SimulationResult
+zulf_pulse_acquire(sys, regime, acq, *, initial='regime', detect='regime') -> SimulationResult
 ```
 
 **参数**
 - `regime`：通常 `ZULF()`（真零场）或 `LF(B0_T=...)`（小偏置场，实验室系）。
-- `initial`：`'x'` 默认（`prepolarized_x`）；`'z'`（`prepolarized_z`）；
-  `'regime'`（使用 `regime.initial_state(sys)`）；或自定义 ρ 数组。
-- `detect`：`'Mx'` 默认（γ 加权 `M_x`）；`'Mz'`；`'regime'`；或自定义算符。
+- `initial`：`'regime'` 默认（对 `ZULF()` / `LF()` 即 `prepolarized_z`）；
+  也可显式传 `'x'`（`prepolarized_x`）、`'z'` 或自定义 ρ 数组。
+- `detect`：`'regime'` 默认（对 `ZULF()` / `LF()` 即 γ 加权 `M_z`）；
+  也可显式传 `'Mx'`、`'Mz'` 或自定义算符。
 
 **调用示例**
 ```python
@@ -372,7 +374,7 @@ J 谱场景。需要自定义可直接传 `regime` / `acq` 覆盖。
 ```python
 zulf_j_spectrum(sys, regime=None, acq=None, *,
                 BW_Hz=200.0, T_s=10.0, t2_star=2.0, lb_Hz=0.5,
-                initial='x', detect='Mx') -> SimulationResult
+                initial='regime', detect='regime') -> SimulationResult
 ```
 
 **调用示例**
@@ -399,7 +401,7 @@ res = zulf_j_spectrum(sys)  # 全默认
 zulf_dc_pulse_acquire(sys, regime, acq, *,
                       channel, B_T=None, duration_s=None,
                       flip_angle=None, phase=0.0,
-                      initial='z', detect='Mx',
+                      initial='regime', detect='regime',
                       ideal=False) -> SimulationResult
 ```
 
@@ -408,7 +410,7 @@ zulf_dc_pulse_acquire(sys, regime, acq, *,
 - `B_T` / `duration_s`：物理参数；翻转角度 = `|γ(channel)| · B_T · duration_s`。
 - `flip_angle`：弧度，硬脉冲快捷。
 - `phase`：脉冲相位，弧度。`0 = +x`，`π/2 = +y`。
-- `initial`：默认 `'z'`（预极化沿 z，脉冲前的物理初态）。
+- `initial`：默认 `'regime'`（对 `ZULF()` / `LF()` 即预极化沿 z）。
 - `ideal`：True 时即使给出 (`B_T`, `duration_s`) 也走硬脉冲极限（用于验证）。
 
 **调用示例**
@@ -420,7 +422,8 @@ from src.sequences import zulf_dc_pulse_acquire
 sys = SpinSystem(['1H','1H'], [0.0, 0.0], [[0, 7.0],[7.0, 0]])
 acq = Acquisition.from_bw_duration(BW_Hz=50, T_s=2.0, t2_star=1.0)
 
-# 硬脉冲快捷：90° 绕 +y → Iz → +Ix；后续等价于 zulf_pulse_acquire(..., initial='x')
+# 硬脉冲快捷：90° 绕 +y → Iz → +Ix；后续等价于
+# zulf_pulse_acquire(..., initial='x', detect='Mx')
 res = zulf_dc_pulse_acquire(sys, ZULF(), acq,
                             channel='1H', flip_angle=np.pi/2, phase=np.pi/2)
 
