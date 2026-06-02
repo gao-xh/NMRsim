@@ -267,34 +267,67 @@ Reference Hamiltonians:
 
 ### 16.4 Module layout (`src/core/`)
 
-| Module          | Responsibility                                              |
-|-----------------|-------------------------------------------------------------|
-| `isotopes.py`   | γ and spin-quantum-number table, with conversion helpers.   |
-| `ops.py`        | Spin-1/2 Pauli operators, Kron expansion, Ix/Iy/Iz/I±.      |
-|                 | Cached per spin count via `lru_cache`.                      |
-| `system.py`     | `SpinSystem` dataclass: isotopes + shifts_ppm + J_Hz.       |
-|                 | Validates shape, symmetry, diagonal-zero, I=1/2-only.       |
-| `hamiltonian.py`| Three H builders (see 16.2). All return Hermitian, rad/s.   |
-| `states.py`     | Initial density matrices (thermal high-T, prepolarized x).  |
-| `detection.py`  | Detection operators (I+, Mx, Mz).                           |
-| `engine.py`     | One-time eigendecomp + `fid()` + `stick_spectrum()`.        |
-| `processing.py` | Apodization, FFT with zero-fill, Hz↔ppm axis conversion.    |
+| Module           | Responsibility                                                |
+|------------------|---------------------------------------------------------------|
+| `isotopes.py`    | γ and spin-quantum-number table, with conversion helpers.     |
+| `ops.py`         | Spin-1/2 Pauli operators, Kron expansion, Ix/Iy/Iz/I±.        |
+|                  | Cached per spin count via `lru_cache`.                        |
+| `system.py`      | `SpinSystem` dataclass: isotopes + shifts_ppm + J_Hz.         |
+|                  | Validates shape, symmetry, diagonal-zero, I=1/2-only.         |
+| `hamiltonian.py` | Three H builders (see 16.2). All return Hermitian, rad/s.     |
+| `states.py`      | Initial density matrices (thermal high-T, prepolarized x).    |
+| `detection.py`   | Detection operators (I+, Mx, Mz).                             |
+| `pulses.py`      | Hard pulses (`pulse`), propagators, `evolve`, `apply_unitary`.|
+|                  | Reserved stubs: `ShapedPulse`, `Event`, `run_sequence` (NYI). |
+| `engine.py`      | `EigenSystem`, `fid()`, `stick_spectrum()`, `acquire(...,acq)`. |
+| `processing.py`  | Apodization, FFT with zero-fill, Hz↔ppm axis conversion.      |
+| `regime.py`      | `Regime` dataclass + `HF` / `ZULF` / `LF` factories.          |
+| `acquisition.py` | `Acquisition` dataclass + HF/ZULF presets and constructors.   |
+| `simulate.py`    | High-level `simulate(sys, regime, acq) -> SimulationResult`.  |
 
 Layering rule: each module imports only from modules above it in this
-table; no cycles. Anything Qt-related lives in `src/ui/`, not here.
+table; no cycles. `simulate.py` is the only module that touches all
+three of (regime, acquisition, engine). Anything Qt-related lives in
+`src/ui/`, not here.
+
+### 16.4a Public API contract
+
+All new user code (scripts, sequences, UI) MUST go through the three
+parameter objects below. Hard-coded numbers like `dt=1/4000` or
+`B0_T=9.4` outside of test fixtures are a code smell.
+
+```python
+from src.core import SpinSystem, HF, ZULF, Acquisition, simulate
+
+sys    = SpinSystem(isotopes=[...], shifts_ppm=[...], J_Hz=[[...]])
+regime = HF(B0_T=9.4, observed='1H', carrier_ppm=2.0)   # or ZULF() / LF(B0_T=...)
+acq    = Acquisition.from_sw_aq(SW_Hz=4000, AQ_s=2.0, t2_star=0.5, zero_fill=2)
+result = simulate(sys, regime, acq)
+```
+
+Low-level functions (`H_rotating`, `thermal_high_temp`, `fid`, `pulse`,
+`acquire`, ...) remain exported for sequence implementations and
+advanced use, but are not the recommended entry point.
 
 ### 16.5 High-field ↔ ZULF as engine configurations
 
-The same FID pipeline serves both modes; only three knobs change:
+The same FID pipeline serves both modes; only three knobs change, and
+they are bundled by the `Regime` abstraction (`src/core/regime.py`):
 
-| Knob               | High field            | ZULF (true zero)        |
-|--------------------|-----------------------|-------------------------|
-| Hamiltonian        | `H_rotating(...)`     | `H_J_only(...)`         |
-| Initial state ρ₀   | `thermal_high_temp`   | `prepolarized_x`        |
-| Detection operator | `detect_Iplus(obs)`   | `detect_Mx()`           |
+| Knob               | High field (`HF`)                      | ZULF (`ZULF`)            |
+|--------------------|----------------------------------------|--------------------------|
+| Hamiltonian        | `H_rotating(sys, B0, observed)`        | `H_J_only(sys)`          |
+| Initial state ρ₀   | thermal → 90°x on `observed` (auto)    | `prepolarized_x(sys)`    |
+| Detection operator | `detect_Iplus(observed)`               | `detect_Mx()`            |
+| Display unit       | ppm (via `regime.larmor_Hz()`)         | Hz                       |
+
+Adding another regime (low field with bias, Earth field, ...) means
+writing a new factory in `regime.py`; sequences and `simulate()` do not
+change. `HF`'s initial state is the *post-90°x* density matrix, so
+`simulate(sys, HF(...), acq)` directly returns a pulse-acquire FID.
 
 The "translation" workflow is therefore: build one `SpinSystem` →
-configure two engines (HF and ZULF) on it → render two spectra.
+swap `regime` between `HF(...)` and `ZULF()` → render two spectra.
 
 ### 16.6 Caching and reuse
 
@@ -319,12 +352,55 @@ configure two engines (HF and ZULF) on it → render two spectra.
 
 ### 16.8 Roadmap (engineering, not deadlines)
 
+See `docs/SEQUENCES_PLAN.md` for the authoritative pulse-sequence
+roadmap (4 layers, per-layer acceptance tests, ZULF parallel track).
+High-level milestones below mirror that plan:
+
 - v0.1 — `src/core` 1D engine (done). Smoke tests against analytic AX/AB.
-- v0.2 — Multi-component mixing (weighted sum of `SpinSystem`s), basic
+- v0.1-dev (current) — added `regime` / `acquisition` / `pulse` layers and
+  the `simulate()` entry point so HF↔ZULF and parameter changes are
+  one-liners. See §16.9 for the structural log.
+- v0.2 — `src/sequences/oneD.py`: `pulse_acquire`, `pulse_acquire_decoupled`,
+  `spin_echo`, `inversion_recovery`, `cpmg`. T1 field on `SpinSystem`.
+- v0.3 — Multi-component mixing (weighted sum of `SpinSystem`s), basic
   matplotlib viewer.
-- v0.3 — Minimal Qt UI: edit `SpinSystem` + run HF + run ZULF + compare.
-- v0.4 — 2D module port (COSY, MQ-ZULF) from reference.
-- v0.5 — High-field spectrum → {δ, J} fitting (scipy.optimize on the same
+- v0.4 — 2D module: `hsqc`, `hmbc`; generic 2D wrapper + `fft2_spectrum`.
+- v0.5 — `cosy`, `tocsy`. Optional sequence-DSL (`Event` / `run_sequence`).
+- v0.6 — Minimal Qt UI: edit `SpinSystem` + pick `Regime` + pick `Acquisition`
+  + run any sequence + compare.
+- v0.7 — High-field spectrum → {δ, J} fitting (scipy.optimize on the same
   forward engine).
-- v1.0 — Relaxation (T1/T2 per spin or per coherence), Liouville path for
-  multi-pulse sequences.
+- v1.0 — Relaxation (T1/T2 per spin or per coherence), Liouville path,
+  NOESY/ROESY.
+
+### 16.9 Log of structural updates
+
+This section records architecture-level changes only. Per-change deltas
+(file lists, bug fixes, …) live in `CHANGELOG.md`.
+
+- **2026-06-01 — initial engine scaffold.** Created `src/core/` with the
+  9-module Hilbert-space engine described in §16.4 (pre-regime version).
+  Locked in Level-C physics (§16.2), rad/s internal unit (§16.3), and
+  the three-knob HF/ZULF table (§16.5, original form). Identified the
+  reference repo as read-only (§16.7).
+- **2026-06-02 — regime / acquisition / pulse layers + `simulate()`.**
+  Added three parameter-object abstractions so user code no longer
+  threads loose numbers through the call stack:
+  - `Regime` (`HF` / `ZULF` / `LF`) bundles Hamiltonian + ρ₀ +
+    detector + display unit. `HF` now bakes in the 90°x pulse so
+    `simulate(...)` is a true pulse-acquire (fixes the previously
+    empty HF spectrum).
+  - `Acquisition` collects dwell, n_points, T2*, zero-fill, apodization,
+    with `from_sw_aq` / `from_bw_duration` / `with_` constructors and
+    HF-1H / HF-13C / ZULF presets.
+  - `simulate(sys, regime, acq) -> SimulationResult` is the new
+    top-level entry point; collapses H → ρ₀ → detect → FID → apodize
+    → FFT → axis. Result carries inputs back for reproducibility.
+  - `pulses.py` introduces the first multi-pulse primitives
+    (`pulse`, `propagator`, `evolve`, `apply_unitary`) plus reserved
+    extension stubs (`ShapedPulse`, `Event`, `run_sequence`) that
+    raise `NotImplementedError` until v0.5+ / v0.6+.
+  - `engine.acquire(H, rho, det, acq)` is added so future sequence
+    functions and `simulate()` share one boilerplate-free path.
+  - Authored `docs/SEQUENCES_PLAN.md` (4-layer pulse-sequence roadmap,
+    parallel ZULF track, deferred items, milestone gates v0.2–v1.0).
