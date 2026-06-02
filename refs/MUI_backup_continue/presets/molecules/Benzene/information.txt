@@ -1,0 +1,33 @@
+Saved at: 2025-08-20 17:01:14
+Benzene
+
+Molecular structural formula:
+
+            1H(1)
+             |    1H(6)
+           13C(7)___| 
+             /      \
+            /        \
+    1H(2)——<    ()    >——1H(5)
+            \        /
+             \______/   
+             |      |
+            1H(3) 1H(4)
+
+From:
+@article{blanchard_high-resolution_2013,
+	title = {High-{Resolution} {Zero}-{Field} {NMR} \textit{{J}} -{Spectroscopy} of {Aromatic} {Compounds}},
+	volume = {135},
+	issn = {0002-7863, 1520-5126},
+	url = {https://pubs.acs.org/doi/10.1021/ja312239v},
+	doi = {10.1021/ja312239v},
+	abstract = {We report the acquisition and interpretation of nuclear magnetic resonance (NMR) J-spectra at zero magnetic ﬁeld for a series of benzene derivatives, demonstrating the analytical capabilities of zero-ﬁeld NMR. The zeroth-order spectral patterns do not overlap, which allows for straightforward determination of the spin interactions of substituent functional groups. Higher-order eﬀects cause additional line splittings, revealing additional molecular information. We demonstrate resonance linewidths as narrow as 11 mHz, permitting resolution of minute frequency diﬀerences and precise determination of long-range J-couplings. The measurement of J-couplings with the high precision oﬀered by zero-ﬁeld NMR may allow further reﬁnements in the determination of molecular structure and conformation.},
+	language = {en},
+	number = {9},
+	urldate = {2025-02-21},
+	journal = {Journal of the American Chemical Society},
+	author = {Blanchard, John W. and Ledbetter, Micah P. and Theis, Thomas and Butler, Mark C. and Budker, Dmitry and Pines, Alexander},
+	month = mar,
+	year = {2013},
+	pages = {3607--3612},
+}

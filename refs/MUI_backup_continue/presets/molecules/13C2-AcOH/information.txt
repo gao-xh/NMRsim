@@ -1,0 +1,30 @@
+Saved at: 2025-09-16 10:46:48
+13C2-AcOH
+
+Molecular structural formula:
+
+            OH
+            |
+          13C(4)==16O
+            |
+   1H(1)——13C(5)——1H(2)
+            |
+          1H(3)
+
+
+From:
+@article{sjolander_two-dimensional_2020,
+	title = {Two-dimensional single- and multiple-quantum correlation spectroscopy in zero-field nuclear magnetic resonance},
+	volume = {318},
+	issn = {10907807},
+	url = {https://linkinghub.elsevier.com/retrieve/pii/S1090780720300999},
+	doi = {10.1016/j.jmr.2020.106781},
+	abstract = {We present single- and multiple-quantum correlation J-spectroscopy detected in zero ({\textless} 1 lG) magnetic ﬁeld using a 87Rb vapor-cell magnetometer. At zero ﬁeld the spectrum of ethanol appears as a mixture of 13C isotopomers, and correlation spectroscopy is useful in separating the two composite spectra. We also identify and observe the zero-ﬁeld equivalent of a double-quantum transition in 13C2-acetic acid, and show that such transitions are of use in spectral assignment. Two-dimensional spectroscopy further improves the high resolution attained in zero-ﬁeld NMR since selection rules on the coherencetransfer pathways allow for the separation of otherwise overlapping resonances into distinct cross-peaks. Ó 2020 Elsevier Inc. All rights reserved.},
+	language = {en},
+	urldate = {2025-09-12},
+	journal = {Journal of Magnetic Resonance},
+	author = {Sjolander, Tobias F. and Blanchard, John W. and Budker, Dmitry and Pines, Alexander},
+	month = sep,
+	year = {2020},
+	pages = {106781},
+}

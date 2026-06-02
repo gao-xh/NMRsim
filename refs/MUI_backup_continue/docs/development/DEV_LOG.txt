@@ -1,0 +1,46 @@
+# Update Log
+# Date: 2025-10-07
+# Start Time: 13:23
+
+## Features & Changes
+- [2025-10-07] **COMPLETED**: Variable name prefix support in spinach_bridge.py
+  * All bridge classes (sys, bas, inter, parameters, sim, data) now support var_prefix parameter
+  * Multi-system simulations no longer have variable conflicts in MATLAB workspace
+  * Example: SYS(eng, var_prefix='sys1_') creates 'sys1_sys' instead of 'sys'
+  * Backward compatible: default behavior (no prefix) unchanged
+  
+- [2025-10-07] **COMPLETED**: Updated Dual_system_spinach_UI.py to use variable prefixes
+  * SimWorker automatically generates prefix from system_name
+  * PostProcessWorker uses same prefix to access previously saved data
+  * System 1 and System 2 now have isolated MATLAB variables
+  * Fixes the issue where System 1 would show System 2's figure
+
+
+## TODO
+- [UI/S&L] Continue refactoring and optimization
+
+## Further Plans
+- [interface/UI] Improve code architecture
+- [All] Integrate the application with the full Python-based simulation module
+- [All] Package as a standalone application
+
+## Attention
+- **SOLVED**: Variable name prefix support now implemented!
+  * All bridge classes support optional var_prefix parameter
+  * UI automatically generates prefixes based on system names
+  * See BRIDGE_VAR_PREFIX_README.md for detailed documentation
+
+- Window function behavior:
+  * none/crisp: Narrowest lines, may have artifacts
+  * exp: Increases linewidth (↑k = broader lines, less noise)
+  * gauss: Can narrow then broaden depending on k
+  * Trade-off: resolution vs. sensitivity
+
+- Parameter file format now includes:
+  * system1/system2: isotopes, j_matrix, symmetry, variables, approximation, formalism
+  * acquisition: magnet, sweep, npoints, zerofill, use_gpu
+  * window: type, k
+  * plot_settings: weight, display_mode
+
+# End date: 
+# End Time: 

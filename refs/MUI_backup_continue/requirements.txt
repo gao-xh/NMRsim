@@ -1,0 +1,152 @@
+# Requirements for Multi-System ZULF-NMR Simulator
+
+## Python Version
+- Python 3.8 or higher
+
+## Core Dependencies
+
+```txt
+# UI Framework (Complete package with multimedia support)
+PySide6==6.7.3
+
+# Scientific Computing
+numpy>=1.20.0
+matplotlib>=3.5.0
+
+# MATLAB Integration
+matlabengine>=9.11.0  # Requires MATLAB R2021b or later
+
+# Optional: For network features
+requests>=2.28.0
+```
+
+## Installation
+
+### 1. Full Installation (recommended)
+
+```bash
+pip install PySide6==6.7.3 numpy matplotlib
+```
+
+**Note**: `PySide6 6.7.3` includes ALL submodules:
+- QtCore, QtWidgets, QtGui (Core UI)
+- QtMultimedia (Video playback)
+- QtMultimediaWidgets (Video widgets)
+- QtCharts, QtDataVisualization, etc.
+
+### 2. MATLAB Engine API
+
+**Requires MATLAB R2021b or later installed**
+
+```bash
+cd "C:\Program Files\MATLAB\R2023b\extern\engines\python"
+python setup.py install
+```
+
+Replace `R2023b` with your MATLAB version.
+
+### 4. Network Interface (Optional)
+
+```bash
+pip install requests
+```
+
+## Conda Environment Setup
+
+### Create environment:
+```bash
+conda create -n matlab312 python=3.12
+conda activate matlab312
+```
+
+### Install all dependencies:
+```bash
+# If PySide6 was previously installed via conda, remove it first to avoid conflicts
+conda remove pyside6 --force -y
+
+# Then install the complete version with pip
+pip install PySide6==6.7.3 numpy matplotlib requests
+
+# Then install MATLAB engine
+cd "C:\Program Files\MATLAB\R2023b\extern\engines\python"
+python setup.py install
+```
+
+## Verify Installation
+
+```python
+# Test imports
+python -c "from PySide6.QtCore import Qt; print('PySide6: OK')"
+python -c "from PySide6.QtMultimedia import QMediaPlayer; print('Multimedia: OK')"
+python -c "import numpy; print('NumPy: OK')"
+python -c "import matplotlib; print('Matplotlib: OK')"
+python -c "import matlab.engine; print('MATLAB: OK')"
+```
+
+## Troubleshooting
+
+### Issue: "Cannot import QtMultimedia"
+
+**Solution 1**: Ensure complete PySide6 is installed
+```bash
+pip install PySide6==6.7.3
+```
+
+**Solution 2**: For conda environments, remove conda version first
+```bash
+conda remove pyside6 --force -y
+pip install PySide6==6.7.3
+```
+
+### Issue: "No module named 'matlab'"
+
+**Solution**: Install MATLAB Engine API
+```bash
+cd "C:\Program Files\MATLAB\R2023b\extern\engines\python"
+python setup.py install
+```
+
+### Issue: Video not playing
+
+**Possible causes**:
+1. Missing multimedia codecs
+2. Corrupted video file
+3. Unsupported video format
+
+**Solutions**:
+- Re-encode video as H.264 MP4
+- Check video file integrity
+- Try different video player
+
+### Issue: GIF not animating
+
+**Solution**: Check file format and path
+```python
+from pathlib import Path
+gif_path = Path("assets/animations/spinach_logo.gif")
+print(f"GIF exists: {gif_path.exists()}")
+```
+
+## Platform-Specific Notes
+
+### Windows
+- MATLAB Engine requires matching Python architecture (32-bit vs 64-bit)
+- Use PowerShell or CMD for commands
+
+### Linux
+- May need additional multimedia codecs: `sudo apt install libqt6multimedia6`
+- Check file permissions on assets
+
+### macOS
+- May need to allow app in Security & Privacy settings
+- Use `brew install` for missing dependencies
+
+## Minimal Requirements (Text-only mode)
+
+If you don't need multimedia features:
+
+```bash
+pip install PySide6 numpy matplotlib
+```
+
+The splash screen will fall back to text-based loading indicator.

@@ -1,0 +1,44 @@
+MATLAB Initialization Timing Data
+================================================================================
+
+  0.00s - START: Initialization started
+  0.00s - IMPORT: Importing spinach_bridge modules
+  1.25s - ENGINE_START: Starting MATLAB engine
+ 12.11s - ENGINE_READY: MATLAB engine ready
+ 12.11s - SYS_CREATE: Creating system object
+ 12.11s - SYS_ISOTOPES: Setting isotopes ['1H', '1H']
+ 12.12s - SYS_MAGNET: Setting magnet field 14.1T
+ 12.12s - BAS_CREATE: Creating basis object
+ 12.12s - BAS_FORMALISM: Setting formalism 'sphten-liouv'
+ 12.12s - BAS_APPROX: Setting approximation 'none'
+ 12.12s - INTER_CREATE: Creating interactions object
+ 12.12s - INTER_ZEEMAN: Setting Zeeman interactions
+ 12.15s - INTER_COUPLING: Setting J-coupling matrix
+ 13.47s - SIM_CREATE_START: Creating SIM object
+ 13.47s - SIM_CREATE_CALL: Calling sim.create() [this will take time]
+ 62.33s - SIM_CREATE_DONE: sim.create() completed
+ 62.33s - CLEANUP: Cleaning up
+ 62.34s - END: Initialization completed successfully
+
+Total time: 62.34s
+
+================================================================================
+PROGRESS MAPPING (30-90% range, 60% total)
+================================================================================
+ 30.0% at   0.00s - Importing spinach_bridge modules
+ 31.2% at   1.25s - Starting MATLAB engine
+ 41.7% at  12.11s - MATLAB engine ready
+ 41.7% at  12.11s - Creating system object
+ 41.7% at  12.11s - Setting isotopes ['1H', '1H']
+ 41.7% at  12.12s - Setting magnet field 14.1T
+ 41.7% at  12.12s - Creating basis object
+ 41.7% at  12.12s - Setting formalism 'sphten-liouv'
+ 41.7% at  12.12s - Setting approximation 'none'
+ 41.7% at  12.12s - Creating interactions object
+ 41.7% at  12.12s - Setting Zeeman interactions
+ 41.7% at  12.15s - Setting J-coupling matrix
+ 43.0% at  13.47s - Creating SIM object
+ 43.0% at  13.47s - Calling sim.create() [this will take time]
+ 90.0% at  62.33s - sim.create() completed
+ 90.0% at  62.33s - Cleaning up
+ 90.0% at  62.34s - Initialization completed successfully

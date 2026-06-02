@@ -1,0 +1,211 @@
+# 📘 ZULF Signal Selection - Agent Guide & Developer Handover
+
+> **Note**: This guide serves as the "source of truth" for AI agents and developers working on this project.
+
+### 1. Project Overview
+**Project Name**: ZULF Signal Selection (ML_ZULF)
+**Goal**: Identify valid signal peaks from experimental data by verifying that peak intensity enhances as data volume (averages) increases. This validates signals based on the principle that Signal-to-Noise Ratio (SNR) is proportional to the square root of the number of scans.
+
+*   **Core Context**: Low-field NMR signals are often buried in noise. We leverage the $\text{SNR} \propto \sqrt{N}$ scaling law.
+    *   **Signal**: Coherent integration leads to intensity growth proportional to $\sqrt{N}$ (relative to noise).
+    *   **Noise**: Random phases and amplitudes cause it to average out (cancelation) or fluctuate randomly without a growth trend.
+    *   **Method**: Peaks that grow consistently with more averages are treated as signals; those that do not are noise.
+*   **Workspace Structure**:
+    *   `src/`: Core logic and helper functions.
+    *   `notebooks/`: Exploratory Data Analysis (EDA) and model prototyping.
+    *   `tests/`: Unit and integration tests.
+    *   `references/Data-Process/`: The reference codebase for NMR processing logic.
+
+### 2. Development Standards
+*   **Language**: Python 3.x
+*   **Code Comments**: **MUST BE IN ENGLISH**. No Chinese characters in the source code files (to avoid encoding issues and maintain standard).
+*   **UI/Interaction Design**: For any data processing parameter adjustment (e.g., ranges, thresholds), **MUST** use the "Slider + SpinBox" synchronized pattern found in the reference code. This provides both intuitive sliding and precise numerical input.
+*   **Docstrings**: Use Google or NumPy style docstrings.
+*   **Type Hinting**: Strongly encouraged for all public functions in `src/`.
+
+### 3. Architecture & Key Logic (Planned)
+
+#### A. Data Pipeline
+1.  **Ingestion**: Load raw ZULF data (likely time-domain FID).
+2.  **Preprocessing**: Apply basic text/filtering.
+    *   *Reference*: Use logic from `references/Data-Process/nmr_processing_lib`.
+3.  **Feature Extraction**: Extract features relevant to peak evolution (e.g., peak height vs. scan count, consistency of frequency).
+4.  **Signal Validation Strategy**:
+    *   **Logic**: Analyze peak evolution across cumulative averages (or progressive scan blocks).
+    *   **Criterion**: Valid signals must show growth/enhancement consistent with $\sqrt{N}$ scaling (SNR vs Scans), whereas noise should average out or behave randomly.
+    *   **Classification**: Distinguish "Signal" (growth) vs "Noise" (random/decay) based on this trend.
+
+#### B. Architectural Patterns
+*   **Threading Model**: 
+    *   **Main Thread (UI)**: Handles user interaction, plotting, and lightweight updates.
+    *   **Worker Threads (`QThread`)**: Used for all heavy computational tasks to prevent UI freezing.
+        *   `ValidationWorker`: Handles the sequential file loading and signal growth validation.
+        *   `T2MapWorker`: Handles the computationally intensive T2 curve fitting across thousands of STFT frequency bins.
+*   **Separation of Concerns**:
+    *   `src/processing.py`: Mathematical kernels (FFT, Curve Fitting, Signal Processing).
+    *   `src/ui_main.py`: Visualization logic, Thread management, User Interaction. Note: Some visualization-specific math (e.g., grid generation for heatmaps) currently resides here for tight coupling with Matplotlib, but should move to `processing.py` if it grows.
+
+#### C. Reference Utilization
+*   The `references/Data-Process` folder contains robust implementations for:
+    *   SVD Denoising (`nmr_processing_lib.processing.filtering`)
+    *   FFT & Phasing
+    *   Data loading utilities
+*   **Strategy**: Port or reference these utilities into `src/` rather than rewriting them from scratch.
+
+### 4. Implementation Strategy (Progressive Validation)
+
+#### A. Data Structure & incremental Loading
+*   **Configuration**: Use `src/config.py` for all global constants (paths, defaults, thresholds, UI ranges). Do not hardcode values in logic files.
+*   **Existing Format**: The reference system uses individual `.dat` files for each scan (e.g., `0.dat`, `1.dat`...) in a folder.
+*   **Optimization**: Instead of reloading files for each checkpoint, use **Cumulative Sum** (Running Sum).
+    *   `Sum_N = Sum_{N-1} + Scan_N`
+    *   `Average_N = Sum_N / N`
+    *   This avoids I/O bottlenecks when computing averages for N=10, 100, 1000, etc.
+
+3.  **Unified Preprocessing**:
+    *   **Phase Sync**: All subsets must use the **same phase correction parameters** derived from the full dataset ($N_{max}$). Do not auto-phase each subset individually to avoid jitter.
+    *   **Pipeline**: Load Raw $\to$ Pre-processing (Savgol/Filter) $\to$ Average $\to$ FFT $\to$ Phase Correction (Fixed).
+
+#### B. Quality Control (Scan Selection)
+*   **Problem**: Experimental data often contains "bad scans" (e.g., EMI spikes, magnet quenches) that do not follow Gaussian noise distribution. These outliers violate the $\sqrt{N}$ assumption and degrade signal detection.
+*   **Solution (Reference: `references/ScanSelector`)**:
+    *   **Residual Analysis**: Compare each individual scan against a "Reference Scan" (e.g., median of all scans).
+    *   **Metric**: Calculate **Squared Residual Sum** (or Euclidean Distance) for each scan.
+    *   **Filtering**: Reject scans with residuals exceeding a dynamic threshold (e.g., $> 2\sigma$ from mean residual).
+    *   **Integration**: This QC step should happen **inside `ProgressiveLoader`**, before any cumulative averaging is performed.
+
+#### C. Validation Workflow
+1.  **Dynamic Checkpoints**: Generate checkpoints $(N_i)$ based on total scan count $M$ to ensure uniform distribution on the $\sqrt{N}$ scale.
+    *   Formula: $N_i \approx (\frac{i}{K}\sqrt{M})^2$
+2.  **Sampling Modes**:
+    *   **Mode A (Sequential)**: Cumulative average $[0, N_i]$. Fast, sensitive to drift.
+    *   **Mode B (Bootstrap/Resampling)**: For a fixed $N_i$, randomly sample $N_i$ scans $K$ times (e.g., 5 times).
+        *   Result: Mean SNR $\pm$ StdDev.
+        *   Benefit: Provides error bars and checks statistical stability.
+3.  **Trace Extraction**: For each candidate frequency peak, extract its intensity at every checkpoint.
+4.  **Regression Analysis**:
+    *   Fit the intensity $I$ against $\sqrt{N}$.
+    *   Calculate **Correlation Coefficient ($R^2$)** and **Slope**.
+    *   **Signal**: High $R^2$, Positive Slope (Consistent with $\sqrt{N}$ growth).
+    *   **Noise**: Low $R^2$, or Flat/Negative Slope (Random phases cancel out or fluctuate unpredictably).
+
+### 5. Standard Visualization
+*   **Macro View (Traffic Light Spectrum)**: A full spectrum view where peaks are color-coded (Green=Signal, Red=Noise, Yellow=Unsure).
+*   **Micro View (Evolution Plot)**: Click on any peak to see its "Growth Curve" ($Intensity$ vs $\sqrt{N}$).
+    *   This is the definitive proof for signal validity.
+*   **Control Panel**: Use "Slider + SpinBox" to adjust decision thresholds (e.g., Min $R^2$, Min Slope) in real-time.
+
+### 6. Advanced Visualization & T2 Mapping (Global Distribution)
+*   **Concept**:
+    *   A "Pseudo-2D" plot (Frequency vs T2* Decay) similar to DOSY (Diffusion Ordered Spectroscopy).
+    *   Visualizes the distribution of decay times across the entire spectrum to help separate fast-decaying noise from long-lived signals.
+*   **Physics-Linked Resolution**:
+    *   The grid resolution (`nx`, `ny`) is **strictly linked** to the physical resolution of the STFT transform (`df`, `dt`).
+    *   **1 Pixel = 1 STFT Frequency Bin**. This ensures no loss of spectral information during visualization.
+*   **Smoothing Strategy**:
+    *   **Horizontal (Frequency)**: `sigma_x` is fixed small (e.g., 0.5 pixels) to simulate sub-bin resolution sharpening.
+    *   **Vertical (T2)**: `sigma_y` is scaled relative to the total T2 range (e.g., 1.25% of height) to create a "cloud" effect, reflecting the inherent uncertainty in T2 estimation.
+*   **Visual Style**:
+    *   Use **LinearSegmentedColormap** ("Blues") with a custom alpha channel that fades to transparent at low intensities.
+    *   Overlay **Contour Lines** (10%-95%) to emphasize density peaks.
+
+### 7. Critical Watchlist (Avoid these pitfalls)
+
+1.  **Strict Separation of Concerns**:
+    *   **Logic in `src/processing.py`**: All mathematical calculations (FFT, fitting, filtering, algorithms) MUST reside here.
+    *   **UI in `src/ui_main.py`**: Only UI logic (buttons, layouts, plotting, user input). It should call `processing` methods to get results.
+    *   **Never pile math updates** into `ui_main.py` for convenience. It makes the codebase unmaintainable.
+
+2.  **Path dependencies**:
+    *   Never hardcode absolute paths (e.g., `C:\Users\...`). Use `pathlib` and relative paths.
+    *   Data files should reside in `data/` and be ignored by Git if they are large.
+
+3.  **Reference Code Isolation**:
+    *   Do not modify files inside `references/Data-Process` directly if possible. Copy useful functions to `src/` or import them if the path is added to `sys.path` (Copying is often safer for decoupling).
+
+4.  **Reproducibility**:
+    *   Notebooks (`notebooks/`) should be reproducible. Move stable logic from notebooks to `src/` modules frequently.
+
+### 8. Algorithm Technical Notes (Updated March 2026)
+
+#### A. Oscillation Removal (Filtered T2*)
+*   **Objective**: Remove low-frequency modulations (e.g., J-coupling beats, ~7Hz) from the T2* decay curve to analyze the pure envelope.
+*   **Method**: **Adaptive Moving Average**.
+    *   We abandoned FFT/Butterworth filters because they introduced significant edge artifacts (ringing) and struggled with short data segments.
+    *   **Logic**:
+        1.  Detect dominant oscillation frequency ($f_{osc}$) via detrended FFT.
+        2.  Calculate window size: $W = 3 \times (f_s / f_{osc})$ (spanning 3 full cycles for max cancellation).
+        3.  **Constraint**: Window size is capped at **15%** of data length to prevent over-smoothing the underlying exponential decay.
+    *   **Usage**: Applied in `CurveFitter.remove_oscillation_fft`.
+
+#### B. Robust T2* Fitting Strategy
+*   **Problem**: Flat or slowly decaying signals were often misfitted as "short T2 decay + huge DC offset" (e.g., Signal=100 -> Fit: $A=1000, C=100, T2=1ms$).
+*   **Solution**: **Noise-Aware Constraint on Offset (C)**.
+*   **Implementation**:
+    *   Model: $y(t) = A \cdot e^{-(t-t_{start})/T_2} + C$
+    *   **Constraint**: The baseline offset $C$ is **strictly bounded** by the noise floor.
+        *   `bounds = ([0, 0, 0], [inf, inf, noise_threshold * 1.5])`
+    *   **Source of Truth**: The `noise_threshold` is passed down from the UI (User's Peak Detection Threshold) to the backend.
+*   **Result**: Forces the optimizer to interpret flat signals as "Long T2" rather than "High Offset", ensuring physical validity.
+
+#### C. Asymmetric Least Squares (ASLS) Baseline Correction
+*   **Objective**: Remove non-uniform background drift from the spectrum while preserving peak intensities.
+*   **Method**: Whitaker-Hayes algorithm (Asymmetric Least Squares).
+    *   **Logic**: Iteratively fits a smooth baseline ($z$) to the signal ($y$) by minimizing cost function: $S = \sum w_i (y_i - z_i)^2 + \lambda \sum (\Delta^2 z_i)^2$
+    *   **Weights ($w$)**: Updated iteratively. If signal > baseline (peak region), $w=p$ (very small); if signal < baseline, $w=1-p$ (large). effect: Baseline "hugs" the bottom of the noise floor.
+    *   **Params**:
+        *   $\lambda$ (Lambda): Smoothness (1e3 - 1e7). Larger = stiffer baseline.
+        *   $p$ (Asymmetry): Weight for positive deviations (0.0001 - 0.01). Smaller = baseline stays lower.
+
+#### D. Global T2* Mapping (Pseudo-DOSY)
+*   **Objective**: Visualize the statistical distribution of T2 decay times across the entire spectrum to distinguish coherent signals (Long T2) from noise (Short T2).
+*   **Method**: High-Density STFT Fitting.
+    *   Iterate through **every** frequency bin in the STFT matrix ($10^3 - 10^4$ bins).
+    *   Algorithm: For each frequency $f_i$, extract the time-slice $S(t, f_i)$ and fit the exponential decay model $I = A \cdot e^{-t/T_2}$.
+    *   Filter: Discard fits with $R^2 < \text{Threshold}$ or Amplitude $\approx$ Noise Floor.
+*   **Visualization Logic (Physics-Linked Grid)**:
+    *   **Grid Density**: The heatmap grid dimensions $(n_x, n_y)$ are **strictly derived** from the physical resolution of the raw data.
+        *   $n_x = \text{FreqRange} / df_{STFT}$ (where $df$ is the frequency step of the FFT).
+        *   **Implication**: 1 Pixel on the heatmap $\equiv$ 1 STFT Frequency Bin. This prevents aliasing and ensures no spectral information is lost in the visualization step.
+    *   **Anisotropic Smoothing**:
+        *   **Horizontal ($\sigma_x \approx 0.5$ bin)**: Minimal smoothing applied to the Frequency axis. We want to preserve sharp spectral lines (sub-bin sharpening).
+        *   **Vertical ($\sigma_y \approx 1.25\%$ Range)**: Larger smoothing applied to the T2 Time axis. This creates a "cloud" effect that visually represents the higher uncertainty in T2 estimation compared to frequency.
+
+### 9. UI Engineering Guidelines
+
+#### A. Thread Safety in Heavy Processing
+*   **Problem**: Rapid UI events (e.g., sliding Phase Slider) trigger frequent heavy computations (FFT/Matrix Solvers). Old `QThread` instances may be garbage collected while C++ backend is still executing, causing Segmentation Faults.
+*   **Pattern**: **"Zombie Worker" Lifecycle**.
+    *   **Do Not**: Simply call `worker.quit()` or overwrite `self.worker`.
+    *   **Do**:
+        1.  Disconnect signals from the old worker (to prevent UI updates from obsolete results).
+        2.  Call `quit()`.
+        3.  Move the old worker instance into a `self._zombie_workers` list to keep the Python reference alive until execution finishes naturally.
+        4.  Periodically clean up the list.
+
+### 10. Branch-Specific Implementations
+#### Feature: Global T2 Distribution & Visualization (Current Work - `feature/T2_Viz`)
+This feature implements a high-level statistical view of the signal decay characteristics across the entire spectrum, akin to a DOSY plot.
+*   **Physics-Aware Grid Resolution**:
+    *   The visualization grid (`nx`, `ny`) is **strictly linked** to the physical resolution of the STFT transform (`df`, `dt`).
+    *   **1 Pixel = 1 STFT Frequency Bin**. This ensures no loss of spectral information during visualization.
+*   **Adaptive Smoothing Kernel**:
+    *   **Horizontal (Frequency)**: `sigma_x` is fixed small (e.g., 0.5 pixels) to simulate sub-bin resolution sharpening.
+    *   **Vertical (T2)**: `sigma_y` is scaled relative to the total T2 range (e.g., 1.25% of height) to create a "cloud" effect, reflecting the inherent uncertainty in T2 estimation.
+*   **Architecture**:
+    *   **Worker Thread**: `T2MapWorker` offloads the computationally expensive curve fitting (looping over thousands of bins) to a background thread to keep the UI responsive.
+    *   **Visualization**: Uses `ax.imshow` with a custom "Blues" colormap (alpha gradient) and `ax.contour` overlay (10-95% levels).
+
+#### Feature: Blake's Phase & Preprocessing (`feature/Blake_phase`)
+This branch implements a distinct processing pipeline inspired by Blake's methodology (see `references/SI_zfnmr_processing.ipynb`):
+*   **Time-Domain Phase Correction**:
+    *   **P0 (Zero Order)**: Applied in time domain via complex multiplication ($e^{i \cdot \phi}$).
+    *   **P1 (First Order)**: Interpreted as **Time Shift (Points)**, implemented via array slicing (advance) or prepending (delay).
+    *   **Zero-Filling**: Option to replace truncated start points with 0/mean instead of removing them, maintaining absolute time axis ($t=0$).
+*   **Parameter Compatibility**:
+    *   Settings files saved in this branch include `"version": "blake_phase_v1"`.
+    *   `p1` values are **points (int)**, not degrees.
+
+### 11. Future Roadmap (Updated March 2026)
+
+

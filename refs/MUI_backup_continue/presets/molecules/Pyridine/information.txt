@@ -1,0 +1,22 @@
+Saved at: 2026-02-20 13:26:11
+Pyridine
+
+Molecular structural formula:
+
+                  1H(5)
+           15N(6)___| 
+             /      \
+            /        \
+    1H(1)——<    ()    >——1H(4)
+            \        /
+             \______/   
+             |      |
+            1H(2) 1H(3)
+
+From:
+
+@article{theis_zero-field_nodate,
+	title = {Zero-field {NMR} enhanced by parahydrogen in reversible exchange {Supplementary} {Information}},
+	language = {en},
+	author = {Theis, Thomas and Ledbetter, Micah P and Kervern, Gwendal and Blanchard, John W and Ganssle, Paul and Butler, Mark C and Shin, Hyun D and Budker, Dmitry and Pines, Alexander},
+}

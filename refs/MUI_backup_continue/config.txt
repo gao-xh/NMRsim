@@ -1,0 +1,58 @@
+# Application Configuration
+# Format: KEY = VALUE
+# Lines starting with # are comments
+
+# Application Information
+APP_NAME = Multi-System ZULF-NMR Simulator
+APP_VERSION = 3.0
+APP_DATE = October 2025
+APP_AUTHOR = Xuehan Gao, Ajoy Lab
+APP_DESCRIPTION = Advanced ZULF-NMR simulation tool with multi-system support
+
+# Python Environment
+PYTHON_ENV_PATH = D:/anaconda3/envs/matlab312/python.exe
+
+# Dependencies
+PYSIDE6_VERSION = 6.7.3
+NUMPY_REQUIRED = True
+MATPLOTLIB_REQUIRED = True
+MATLAB_REQUIRED = True
+
+# MATLAB Configuration
+MATLAB_MIN_VERSION = R2021b
+MATLAB_TOOLBOX = Spinach
+
+# File Format Version (for save/load compatibility)
+FILE_FORMAT_VERSION = 2.0
+
+# UI Settings
+SPLASH_WINDOW_WIDTH = 700
+SPLASH_WINDOW_HEIGHT = 550
+ANIMATION_SIZE = 400
+
+# Animation Assets
+# Background PNG Sequence: 301 frames (Starting_Animation_00000.png to Starting_Animation_00300.png)
+# Plays once during loading, supports transparency
+PNG_SEQUENCE_FOLDER = assets/animations/Starting_Animation
+
+# Spin Overlay PNG Sequence: 60 frames (Spin_00000.png to Spin_00059.png)
+# Loops continuously during loading, supports transparency
+SPIN_SEQUENCE_FOLDER = assets/animations/Spin
+
+# Legacy video formats (for reference, PNG sequence is now preferred)
+# Video formats: Prefers ProRes MOV > WebM > MP4
+# Place your video file as one of these names (the first found will be used):
+#   - Starting_Animation.mov (ProRes 4444, best quality, no hardware acceleration issues)
+#   - Starting_Animation.webm (VP9, good quality, cross-platform)
+#   - Starting_Animation.mp4 (H.264, fallback, may have hardware decoder issues)
+VIDEO_ANIMATION = assets/animations/Starting_Animation.mp4
+VIDEO_ANIMATION_MOV = assets/animations/Starting_Animation.mov
+VIDEO_ANIMATION_WEBM = assets/animations/Starting_Animation.webm
+
+# GIF overlay animation
+GIF_ANIMATION = assets/animations/Ajoy-Lab-Spin-Animation-Purple.gif
+
+# Icon Assets
+APP_ICON = assets/icons/app_icon.ico
+APP_ICON_PNG = assets/icons/app_icon.png
+SPLASH_LOGO = assets/icons/splash_logo.png
