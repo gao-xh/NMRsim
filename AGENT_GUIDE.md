@@ -181,6 +181,31 @@ hosts multiple logical systems concurrently:
   non-obvious constraint, workaround, or invariant. No multi-paragraph
   docstrings on private helpers.
 
+### 12a. Log & remote cadence (always-on rule)
+
+Keep the written record and the remote in sync with the working tree at
+all times. Concretely:
+
+- **After every meaningful change** (a new module, an API change, a bug
+  fix, a doc reshuffle — anything you would mention in a stand-up):
+  1. update `CHANGELOG.md` with a one-bullet entry under
+     `[Unreleased]` describing what changed and why;
+  2. if the change is architectural (new layer, renamed contract,
+     deprecated module, new public entry point), also add a one-line
+     entry to `AGENT_GUIDE.md` §16.9 (Log of structural updates);
+  3. `git add -A && git commit -m "<imperative summary>"` with a body
+     listing the affected files / decisions;
+  4. `git push` to `origin/main` (or the working branch) immediately —
+     do not accumulate local-only commits across a session.
+- A change is "meaningful" if a teammate joining tomorrow would want to
+  know about it. Trivial reformatting and in-progress scratch edits
+  don't qualify.
+- The repository's `main` branch and the documentation files together
+  should always describe the same project. If they drift, the
+  documentation is wrong — fix it in the same commit, not later.
+- When in doubt, commit and push. Small, frequent commits are cheaper
+  than reconstructing intent later.
+
 ## 13. Code Style
 
 - PEP 8, 4-space indent, ~100 char soft line limit.
