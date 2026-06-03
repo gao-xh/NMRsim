@@ -67,6 +67,7 @@ class Regime:
     detector: Builder
     observed: Optional[str] = None
     B0_T: float = 0.0
+    carrier_ppm: float = 0.0
     requires_observed: bool = False
     display_unit: str = "Hz"
 
@@ -108,6 +109,7 @@ def HF(B0_T: float,
         detector=lambda s: detect_Iplus(s, observed),
         observed=observed,
         B0_T=B0_T,
+        carrier_ppm=carrier_ppm,
         requires_observed=True,
         display_unit="ppm",
     )

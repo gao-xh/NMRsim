@@ -539,3 +539,9 @@ This section records architecture-level changes only. Per-change deltas
   so development-time experiments can be changed by editing Python,
   while the bottom half stays a stable dispatcher for 1D and 2D
   sequences. This is the intended bridge until a proper Qt UI lands.
+- **2026-06-03 — split save/load for systems and parameters.** `main.py`
+  now serializes `SpinSystem` separately from experiment parameters.
+  System JSON carries isotopes / shifts / J / T1 / label; parameter JSON
+  carries sequence name, regime, acquisition, kwargs, and note. The two
+  files are sufficient to reconstruct and run an experiment without
+  editing the preset functions.

@@ -13,6 +13,11 @@ versions follow SemVer once we tag a first release.
   `Acquisition` / `Acquisition2D`, and the public sequence functions.
   It prints a text summary of the selected experiment, lists the top
   1D / 2D peaks, and optionally plots the spectrum with matplotlib.
+- `main.py` also now supports split save/load of experiments:
+  `SpinSystem` is written to one JSON file, while sequence/regime/
+  acquisition/kwargs live in a second JSON file. `CONFIG['mode']`
+  switches between `preset` and `files`, and `tests/test_main_io.py`
+  covers 1D HF and 2D HSQC round-trip reconstruction.
 
 ### Changed (2026-06-03 — unified ZULF axis convention)
 - `src/core/regime.py` — `ZULF()` and `LF(B0_T=...)` now use the shared

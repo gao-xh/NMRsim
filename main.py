@@ -7,10 +7,19 @@ Edit the CONFIG block below, then run:
 This file is intentionally plain Python rather than a CLI parser so you
 can tweak systems, regimes, acquisitions, and sequence kwargs directly
 in code while developing / validating the engine.
+
+Two usage modes are supported:
+
+- ``mode='preset'``: build an experiment from one of the Python presets
+    below. Optional save hooks can write the spin system and experiment
+    parameters as separate JSON files.
+- ``mode='files'``: load a spin system JSON and an experiment-parameter
+    JSON, then run the experiment without editing the preset functions.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 from typing import Any, Callable, Dict, Union
 
@@ -49,16 +58,247 @@ class ExperimentCase:
     kwargs: Dict[str, Any]
 
 
+SAVE_FORMAT_VERSION = 1
+USER_SAVE_DIR = Path("user_save")
+MOLECULE_SAVE_DIR = USER_SAVE_DIR / "molecules"
+PARAMETER_SAVE_DIR = USER_SAVE_DIR / "parameters"
+
+
 # ---------------------------------------------------------------------------
 # Editable config: pick one preset and optional plot behavior.
 # ---------------------------------------------------------------------------
 
 CONFIG = {
+    "mode": "preset",   # 'preset' | 'files'
     "preset": "hf_zg_1h",
+    "system_file": None,
+    "parameters_file": None,
+    "save_system_as": None,       # e.g. 'user_save/molecules/my_ax.json'
+    "save_parameters_as": None,   # e.g. 'user_save/parameters/my_hsqc.json'
     "show_plot": True,
     "save_plot": None,   # e.g. "outputs/zulf_j_ax.png"
     "print_top_peaks": 8,
 }
+
+
+# ---------------------------------------------------------------------------
+# Save / load helpers.
+# ---------------------------------------------------------------------------
+
+def _jsonify(value: Any) -> Any:
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, (np.floating, np.integer)):
+        return value.item()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(k): _jsonify(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonify(v) for v in value]
+    return value
+
+
+def _write_json(path: str | Path, payload: dict[str, Any]) -> None:
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _read_json(path: str | Path) -> dict[str, Any]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def system_to_dict(sys: SpinSystem) -> dict[str, Any]:
+    return {
+        "version": SAVE_FORMAT_VERSION,
+        "kind": "spin_system",
+        "label": sys.label,
+        "isotopes": list(sys.isotopes),
+        "shifts_ppm": _jsonify(sys.shifts_ppm),
+        "J_Hz": _jsonify(sys.J_Hz),
+        "T1": None if sys.T1 is None else _jsonify(sys.T1),
+    }
+
+
+def system_from_dict(data: dict[str, Any]) -> SpinSystem:
+    if data.get("kind") != "spin_system":
+        raise ValueError(f"expected kind='spin_system', got {data.get('kind')!r}")
+    return SpinSystem(
+        isotopes=list(data["isotopes"]),
+        shifts_ppm=np.asarray(data["shifts_ppm"], dtype=float),
+        J_Hz=np.asarray(data["J_Hz"], dtype=float),
+        T1=(None if data.get("T1") is None else np.asarray(data["T1"], dtype=float)),
+        label=str(data.get("label", "")),
+    )
+
+
+def regime_to_dict(regime: Any) -> dict[str, Any]:
+    if regime.name == "HF":
+        return {
+            "kind": "HF",
+            "B0_T": regime.B0_T,
+            "observed": regime.observed,
+            "carrier_ppm": regime.carrier_ppm,
+        }
+    if regime.name == "ZULF":
+        return {"kind": "ZULF"}
+    if regime.name == "LF":
+        return {
+            "kind": "LF",
+            "B0_T": regime.B0_T,
+        }
+    raise ValueError(f"unsupported regime for save/load: {regime.name!r}")
+
+
+def regime_from_dict(data: dict[str, Any]) -> Any:
+    kind = data.get("kind")
+    if kind == "HF":
+        return HF(
+            B0_T=float(data["B0_T"]),
+            observed=str(data["observed"]),
+            carrier_ppm=float(data.get("carrier_ppm", 0.0)),
+        )
+    if kind == "ZULF":
+        return ZULF()
+    if kind == "LF":
+        return LF(B0_T=float(data["B0_T"]))
+    raise ValueError(f"unsupported regime kind: {kind!r}")
+
+
+def acquisition1d_to_dict(acq: Acquisition) -> dict[str, Any]:
+    return {
+        "kind": "Acquisition1D",
+        "n_points": acq.n_points,
+        "dt": acq.dt,
+        "t2_star": acq.t2_star,
+        "zero_fill": acq.zero_fill,
+        "apodization": acq.apodization,
+        "lb_Hz": acq.lb_Hz,
+        "gb_Hz": acq.gb_Hz,
+        "half_first": acq.half_first,
+    }
+
+
+def acquisition_to_dict(acq: Union[Acquisition, Acquisition2D]) -> dict[str, Any]:
+    if isinstance(acq, Acquisition2D):
+        return {
+            "kind": "Acquisition2D",
+            "t1": acquisition1d_to_dict(acq.t1),
+            "t2": acquisition1d_to_dict(acq.t2),
+        }
+    return acquisition1d_to_dict(acq)
+
+
+def acquisition1d_from_dict(data: dict[str, Any]) -> Acquisition:
+    return Acquisition(
+        n_points=int(data["n_points"]),
+        dt=float(data["dt"]),
+        t2_star=(None if data.get("t2_star") is None else float(data["t2_star"])),
+        zero_fill=int(data.get("zero_fill", 1)),
+        apodization=str(data.get("apodization", "none")),
+        lb_Hz=float(data.get("lb_Hz", 0.0)),
+        gb_Hz=float(data.get("gb_Hz", 0.0)),
+        half_first=bool(data.get("half_first", True)),
+    )
+
+
+def acquisition_from_dict(data: dict[str, Any]) -> Union[Acquisition, Acquisition2D]:
+    kind = data.get("kind")
+    if kind == "Acquisition1D":
+        return acquisition1d_from_dict(data)
+    if kind == "Acquisition2D":
+        return Acquisition2D(
+            t1=acquisition1d_from_dict(data["t1"]),
+            t2=acquisition1d_from_dict(data["t2"]),
+        )
+    raise ValueError(f"unsupported acquisition kind: {kind!r}")
+
+
+def save_system_file(sys: SpinSystem, path: str | Path) -> None:
+    _write_json(path, system_to_dict(sys))
+
+
+def load_system_file(path: str | Path) -> SpinSystem:
+    return system_from_dict(_read_json(path))
+
+
+def parameters_to_dict(case: ExperimentCase) -> dict[str, Any]:
+    return {
+        "version": SAVE_FORMAT_VERSION,
+        "kind": "experiment_parameters",
+        "name": case.name,
+        "note": case.note,
+        "sequence": case.sequence.__name__,
+        "regime": regime_to_dict(case.regime),
+        "acquisition": acquisition_to_dict(case.acquisition),
+        "kwargs": _jsonify(case.kwargs),
+    }
+
+
+def save_parameters_file(case: ExperimentCase, path: str | Path) -> None:
+    _write_json(path, parameters_to_dict(case))
+
+
+def _sequence_registry() -> dict[str, SequenceFn]:
+    return {
+        fn.__name__: fn
+        for fn in (
+            pulse_acquire,
+            pulse_acquire_decoupled,
+            spin_echo,
+            inversion_recovery,
+            cpmg,
+            hsqc,
+            hmbc,
+            cosy,
+            tocsy,
+            zulf_pulse_acquire,
+            zulf_j_spectrum,
+            zulf_dc_pulse_acquire,
+        )
+    }
+
+
+def load_case_from_files(system_path: str | Path,
+                         parameter_path: str | Path) -> ExperimentCase:
+    system = load_system_file(system_path)
+    data = _read_json(parameter_path)
+    if data.get("kind") != "experiment_parameters":
+        raise ValueError(
+            f"expected kind='experiment_parameters', got {data.get('kind')!r}"
+        )
+
+    sequence_name = str(data["sequence"])
+    registry = _sequence_registry()
+    if sequence_name not in registry:
+        known = ", ".join(sorted(registry))
+        raise ValueError(f"unknown sequence {sequence_name!r}; known: {known}")
+
+    return ExperimentCase(
+        name=str(data.get("name", sequence_name)),
+        note=str(data.get("note", "")),
+        sequence=registry[sequence_name],
+        system=system,
+        regime=regime_from_dict(data["regime"]),
+        acquisition=acquisition_from_dict(data["acquisition"]),
+        kwargs=dict(data.get("kwargs", {})),
+    )
+
+
+def maybe_save_case_files(case: ExperimentCase) -> None:
+    system_path = CONFIG.get("save_system_as")
+    parameter_path = CONFIG.get("save_parameters_as")
+
+    if system_path:
+        save_system_file(case.system, system_path)
+        print(f"Saved system file      : {Path(system_path)}")
+    if parameter_path:
+        save_parameters_file(case, parameter_path)
+        print(f"Saved parameter file   : {Path(parameter_path)}")
 
 
 # ---------------------------------------------------------------------------
@@ -436,13 +676,31 @@ def run_case(case: ExperimentCase):
     return result
 
 
-def main() -> None:
-    preset_name = CONFIG["preset"]
-    if preset_name not in PRESETS:
-        known = ", ".join(sorted(PRESETS))
-        raise ValueError(f"Unknown preset {preset_name!r}. Known presets: {known}")
+def build_case_from_config() -> ExperimentCase:
+    mode = str(CONFIG.get("mode", "preset"))
+    if mode == "preset":
+        preset_name = CONFIG["preset"]
+        if preset_name not in PRESETS:
+            known = ", ".join(sorted(PRESETS))
+            raise ValueError(f"Unknown preset {preset_name!r}. Known presets: {known}")
+        case = PRESETS[preset_name]()
+        maybe_save_case_files(case)
+        return case
 
-    case = PRESETS[preset_name]()
+    if mode == "files":
+        system_path = CONFIG.get("system_file")
+        parameter_path = CONFIG.get("parameters_file")
+        if not system_path or not parameter_path:
+            raise ValueError(
+                "files mode requires CONFIG['system_file'] and CONFIG['parameters_file']"
+            )
+        return load_case_from_files(system_path, parameter_path)
+
+    raise ValueError("CONFIG['mode'] must be 'preset' or 'files'")
+
+
+def main() -> None:
+    case = build_case_from_config()
     result = run_case(case)
 
     if hasattr(result, "fid_cos"):
