@@ -6,6 +6,24 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Changed (2026-06-03 — unified ZULF axis convention)
+- `src/core/regime.py` — `ZULF()` and `LF(B0_T=...)` now use the shared
+  z-axis convention by default: `prepolarized_z(sys)` as the prepared
+  state and `detect_Mz(...)` as the detector. This removes the previous
+  mixed convention where ZULF implicitly started from x-polarized,
+  x-detected experiments.
+- `src/sequences/zulf.py` — `zulf_pulse_acquire`, `zulf_j_spectrum`, and
+  `zulf_dc_pulse_acquire` now default to `initial='regime'` and
+  `detect='regime'`, so sequence behavior follows the regime definition
+  instead of silently assuming transverse preparation / readout.
+- `src/sequences/README.md`, `AGENT_GUIDE.md`, and Layer 5 test comments
+  were updated to describe the shared-axis model and to make explicit
+  that transverse experiments remain available via `initial='x'` /
+  `detect='Mx'` overrides.
+- Full regression after the convention change: 24/24 tests passing across
+  Layer 1-5 (`test_layer1_1d.py`, `test_layer2_echo.py`,
+  `test_layer3_hsqc.py`, `test_layer4_cosy.py`, `test_layer5_zulf.py`).
+
 ### Added (2026-06-02 — Layer 5 sequences: ZULF)
 - `src/sequences/zulf.py` — three new ZULF / low-field 1D sequences:
   - `zulf_pulse_acquire(sys, regime, acq, *, initial='regime',
