@@ -545,3 +545,8 @@ This section records architecture-level changes only. Per-change deltas
   carries sequence name, regime, acquisition, kwargs, and note. The two
   files are sufficient to reconstruct and run an experiment without
   editing the preset functions.
+- **2026-06-03 — main.py switched to file-only inputs.** The top-level
+  script no longer embeds example systems or parameter presets. Manual
+  testing now edits `test_inputs/test_system.json` and
+  `test_inputs/test_params.json` (or custom file paths in `CONFIG`) and
+  leaves `main.py` as a pure loader + dispatcher.

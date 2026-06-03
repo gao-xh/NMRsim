@@ -9,7 +9,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from src.core import Acquisition2D
+from src.core import Acquisition, Acquisition2D, HF, SpinSystem
+from src.sequences import hsqc, pulse_acquire
 
 import main
 
@@ -19,8 +20,62 @@ def _temp_paths() -> tuple[Path, Path]:
     return root / "system.json", root / "parameters.json"
 
 
+def _hf_1d_case() -> main.ExperimentCase:
+    return main.ExperimentCase(
+        name="hf_zg_1h",
+        note="1D high-field pulse-acquire on a simple AX 1H system.",
+        sequence=pulse_acquire,
+        system=SpinSystem(
+            isotopes=["1H", "1H"],
+            shifts_ppm=[1.0, 3.0],
+            J_Hz=[[0.0, 7.0], [7.0, 0.0]],
+            label="AX 1H pair",
+        ),
+        regime=HF(B0_T=9.4, observed="1H", carrier_ppm=2.0),
+        acquisition=Acquisition.from_sw_aq(
+            SW_Hz=4800.0,
+            AQ_s=2.0,
+            t2_star=0.5,
+            zero_fill=2,
+            apodization="exponential",
+            lb_Hz=1.0,
+        ),
+        kwargs={},
+    )
+
+
+def _hsqc_case() -> main.ExperimentCase:
+    return main.ExperimentCase(
+        name="hsqc_ch",
+        note="2D HSQC on a single directly bonded 1H-13C pair.",
+        sequence=hsqc,
+        system=SpinSystem(
+            isotopes=["1H", "13C"],
+            shifts_ppm=[4.0, 50.0],
+            J_Hz=[[0.0, 140.0], [140.0, 0.0]],
+            label="1H-13C CH pair",
+        ),
+        regime=HF(B0_T=9.4, observed="1H", carrier_ppm=0.0),
+        acquisition=Acquisition2D(
+            t1=Acquisition(
+                n_points=64,
+                dt=1.0 / 16000.0,
+                zero_fill=2,
+                half_first=True,
+            ),
+            t2=Acquisition(
+                n_points=1024,
+                dt=1.0 / 6000.0,
+                zero_fill=2,
+                half_first=True,
+            ),
+        ),
+        kwargs={"indirect": "13C", "J_CH": 140.0},
+    )
+
+
 def test_main_io_round_trip_hf_1d():
-    case = main.preset_hf_zg_1h()
+    case = _hf_1d_case()
     system_path, parameter_path = _temp_paths()
 
     main.save_system_file(case.system, system_path)
@@ -43,7 +98,7 @@ def test_main_io_round_trip_hf_1d():
 
 
 def test_main_io_round_trip_hsqc_2d():
-    case = main.preset_hsqc_ch()
+    case = _hsqc_case()
     system_path, parameter_path = _temp_paths()
 
     main.save_system_file(case.system, system_path)

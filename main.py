@@ -4,17 +4,14 @@ Edit the CONFIG block below, then run:
 
     python main.py
 
-This file is intentionally plain Python rather than a CLI parser so you
-can tweak systems, regimes, acquisitions, and sequence kwargs directly
-in code while developing / validating the engine.
+`main.py` no longer embeds any pre-loaded systems or parameter presets.
+Edit the two JSON input files instead:
 
-Two usage modes are supported:
+- ``test_inputs/test_system.json``  : spin-system definition only
+- ``test_inputs/test_params.json``  : sequence / regime / acquisition / kwargs
 
-- ``mode='preset'``: build an experiment from one of the Python presets
-    below. Optional save hooks can write the spin system and experiment
-    parameters as separate JSON files.
-- ``mode='files'``: load a spin system JSON and an experiment-parameter
-    JSON, then run the experiment without editing the preset functions.
+The split mirrors the planned UI data model: molecular parameters and
+experiment parameters are edited and saved independently.
 """
 from __future__ import annotations
 
@@ -59,24 +56,17 @@ class ExperimentCase:
 
 
 SAVE_FORMAT_VERSION = 1
-USER_SAVE_DIR = Path("user_save")
-MOLECULE_SAVE_DIR = USER_SAVE_DIR / "molecules"
-PARAMETER_SAVE_DIR = USER_SAVE_DIR / "parameters"
 
 
 # ---------------------------------------------------------------------------
-# Editable config: pick one preset and optional plot behavior.
+# Editable config: point to the split input files and optional plot behavior.
 # ---------------------------------------------------------------------------
 
 CONFIG = {
-    "mode": "preset",   # 'preset' | 'files'
-    "preset": "hf_zg_1h",
-    "system_file": None,
-    "parameters_file": None,
-    "save_system_as": None,       # e.g. 'user_save/molecules/my_ax.json'
-    "save_parameters_as": None,   # e.g. 'user_save/parameters/my_hsqc.json'
+    "system_file": "test_inputs/test_system.json",
+    "parameters_file": "test_inputs/test_params.json",
     "show_plot": True,
-    "save_plot": None,   # e.g. "outputs/zulf_j_ax.png"
+    "save_plot": None,
     "print_top_peaks": 8,
 }
 
@@ -289,286 +279,6 @@ def load_case_from_files(system_path: str | Path,
     )
 
 
-def maybe_save_case_files(case: ExperimentCase) -> None:
-    system_path = CONFIG.get("save_system_as")
-    parameter_path = CONFIG.get("save_parameters_as")
-
-    if system_path:
-        save_system_file(case.system, system_path)
-        print(f"Saved system file      : {Path(system_path)}")
-    if parameter_path:
-        save_parameters_file(case, parameter_path)
-        print(f"Saved parameter file   : {Path(parameter_path)}")
-
-
-# ---------------------------------------------------------------------------
-# Example experiment presets.
-# ---------------------------------------------------------------------------
-
-def preset_hf_zg_1h() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "1H"],
-        shifts_ppm=[1.0, 3.0],
-        J_Hz=[[0.0, 7.0], [7.0, 0.0]],
-        label="AX 1H pair",
-    )
-    regime = HF(B0_T=9.4, observed="1H", carrier_ppm=2.0)
-    acq = Acquisition.from_sw_aq(
-        SW_Hz=4800.0,
-        AQ_s=2.0,
-        t2_star=0.5,
-        zero_fill=2,
-        apodization="exponential",
-        lb_Hz=1.0,
-    )
-    return ExperimentCase(
-        name="hf_zg_1h",
-        note="1D high-field pulse-acquire on a simple AX 1H system.",
-        sequence=pulse_acquire,
-        system=sys,
-        regime=regime,
-        acquisition=acq,
-        kwargs={},
-    )
-
-
-def preset_hf_spin_echo() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "1H"],
-        shifts_ppm=[1.0, 3.0],
-        J_Hz=[[0.0, 7.0], [7.0, 0.0]],
-        label="AX 1H pair",
-    )
-    regime = HF(B0_T=9.4, observed="1H", carrier_ppm=2.0)
-    acq = Acquisition.from_sw_aq(
-        SW_Hz=4800.0,
-        AQ_s=2.0,
-        t2_star=0.5,
-        zero_fill=2,
-        apodization="exponential",
-        lb_Hz=1.0,
-    )
-    return ExperimentCase(
-        name="hf_spin_echo",
-        note="1D Hahn echo; tau = 1/(4J) gives the standard AX antiphase check.",
-        sequence=spin_echo,
-        system=sys,
-        regime=regime,
-        acquisition=acq,
-        kwargs={"tau": 1.0 / (4.0 * 7.0)},
-    )
-
-
-def preset_hf_ir_single() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H"],
-        shifts_ppm=[0.0],
-        J_Hz=[[0.0]],
-        T1=[0.7],
-        label="Single proton with T1",
-    )
-    regime = HF(B0_T=9.4, observed="1H", carrier_ppm=0.0)
-    acq = Acquisition.from_sw_aq(
-        SW_Hz=4800.0,
-        AQ_s=0.5,
-        t2_star=0.3,
-        zero_fill=2,
-        apodization="exponential",
-        lb_Hz=1.0,
-    )
-    return ExperimentCase(
-        name="hf_ir_single",
-        note="1D inversion-recovery snapshot at one tau value.",
-        sequence=inversion_recovery,
-        system=sys,
-        regime=regime,
-        acquisition=acq,
-        kwargs={"tau": 0.5},
-    )
-
-
-def preset_hsqc_ch() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "13C"],
-        shifts_ppm=[4.0, 50.0],
-        J_Hz=[[0.0, 140.0], [140.0, 0.0]],
-        label="1H-13C CH pair",
-    )
-    regime = HF(B0_T=9.4, observed="1H", carrier_ppm=0.0)
-    acq2d = Acquisition2D(
-        t1=Acquisition(
-            n_points=64,
-            dt=1.0 / 16000.0,
-            zero_fill=2,
-            half_first=True,
-        ),
-        t2=Acquisition(
-            n_points=1024,
-            dt=1.0 / 6000.0,
-            zero_fill=2,
-            half_first=True,
-        ),
-    )
-    return ExperimentCase(
-        name="hsqc_ch",
-        note="2D HSQC on a single directly bonded 1H-13C pair.",
-        sequence=hsqc,
-        system=sys,
-        regime=regime,
-        acquisition=acq2d,
-        kwargs={"indirect": "13C", "J_CH": 140.0},
-    )
-
-
-def preset_cosy_ax() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "1H"],
-        shifts_ppm=[2.0, 4.0],
-        J_Hz=[[0.0, 7.0], [7.0, 0.0]],
-        label="AX homonuclear pair",
-    )
-    regime = HF(B0_T=9.4, observed="1H", carrier_ppm=0.0)
-    acq2d = Acquisition2D(
-        t1=Acquisition(
-            n_points=64,
-            dt=1.0 / 6000.0,
-            t2_star=0.4,
-            zero_fill=2,
-            half_first=True,
-            apodization="exponential",
-            lb_Hz=2.0,
-        ),
-        t2=Acquisition(
-            n_points=1024,
-            dt=1.0 / 6000.0,
-            t2_star=0.4,
-            zero_fill=2,
-            half_first=True,
-            apodization="exponential",
-            lb_Hz=2.0,
-        ),
-    )
-    return ExperimentCase(
-        name="cosy_ax",
-        note="2D COSY-90 with diagonal and cross peaks.",
-        sequence=cosy,
-        system=sys,
-        regime=regime,
-        acquisition=acq2d,
-        kwargs={},
-    )
-
-
-def preset_tocsy_amx() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "1H", "1H"],
-        shifts_ppm=[1.0, 3.0, 5.0],
-        J_Hz=[[0.0, 7.0, 0.0], [7.0, 0.0, 7.0], [0.0, 7.0, 0.0]],
-        label="A-M-X proton chain",
-    )
-    regime = HF(B0_T=9.4, observed="1H", carrier_ppm=0.0)
-    acq2d = Acquisition2D(
-        t1=Acquisition(
-            n_points=96,
-            dt=1.0 / 6000.0,
-            t2_star=0.4,
-            zero_fill=2,
-            half_first=True,
-            apodization="exponential",
-            lb_Hz=2.0,
-        ),
-        t2=Acquisition(
-            n_points=1024,
-            dt=1.0 / 6000.0,
-            t2_star=0.4,
-            zero_fill=2,
-            half_first=True,
-            apodization="exponential",
-            lb_Hz=2.0,
-        ),
-    )
-    return ExperimentCase(
-        name="tocsy_amx",
-        note="2D TOCSY on an A-M-X chain; relayed A-X correlations appear.",
-        sequence=tocsy,
-        system=sys,
-        regime=regime,
-        acquisition=acq2d,
-        kwargs={"mixing_time": 0.080},
-    )
-
-
-def preset_zulf_j_ax() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "13C"],
-        shifts_ppm=[0.0, 0.0],
-        J_Hz=[[0.0, 140.0], [140.0, 0.0]],
-        label="ZULF 1H-13C pair",
-    )
-    regime = ZULF()
-    acq = Acquisition.from_bw_duration(
-        BW_Hz=400.0,
-        T_s=2.0,
-        t2_star=1.0,
-        zero_fill=4,
-        apodization="exponential",
-        lb_Hz=0.5,
-    )
-    return ExperimentCase(
-        name="zulf_j_ax",
-        note="1D ZULF pulse-acquire under the current shared z-axis convention.",
-        sequence=zulf_pulse_acquire,
-        system=sys,
-        regime=regime,
-        acquisition=acq,
-        kwargs={},
-    )
-
-
-def preset_zulf_dc_pulse() -> ExperimentCase:
-    sys = SpinSystem(
-        isotopes=["1H", "1H"],
-        shifts_ppm=[0.0, 0.0],
-        J_Hz=[[0.0, 7.0], [7.0, 0.0]],
-        label="ZULF 1H homonuclear pair",
-    )
-    regime = ZULF()
-    acq = Acquisition.from_bw_duration(
-        BW_Hz=50.0,
-        T_s=2.0,
-        t2_star=1.0,
-        zero_fill=4,
-        apodization="exponential",
-        lb_Hz=0.5,
-    )
-    return ExperimentCase(
-        name="zulf_dc_pulse",
-        note="1D ZULF DC-pulse experiment with explicit transverse readout.",
-        sequence=zulf_dc_pulse_acquire,
-        system=sys,
-        regime=regime,
-        acquisition=acq,
-        kwargs={
-            "channel": "1H",
-            "flip_angle": np.pi / 2,
-            "phase": np.pi / 2,
-            "detect": "Mx",
-        },
-    )
-
-
-PRESETS: dict[str, Callable[[], ExperimentCase]] = {
-    "hf_zg_1h": preset_hf_zg_1h,
-    "hf_spin_echo": preset_hf_spin_echo,
-    "hf_ir_single": preset_hf_ir_single,
-    "hsqc_ch": preset_hsqc_ch,
-    "cosy_ax": preset_cosy_ax,
-    "tocsy_amx": preset_tocsy_amx,
-    "zulf_j_ax": preset_zulf_j_ax,
-    "zulf_dc_pulse": preset_zulf_dc_pulse,
-}
-
-
 def summarize_1d(result: Result1D, *, top_n: int) -> None:
     axis = result.ppm if result.ppm is not None else result.freq_Hz
     unit = "ppm" if result.ppm is not None else "Hz"
@@ -659,7 +369,7 @@ def maybe_plot(case: ExperimentCase,
 
 
 def run_case(case: ExperimentCase):
-    print(f"Preset   : {case.name}")
+    print(f"Experiment: {case.name}")
     print(f"System   : {case.system.label or '<unnamed>'}")
     print(f"Regime   : {case.regime.name}")
     print(f"Sequence : {case.sequence.__name__}")
@@ -677,26 +387,13 @@ def run_case(case: ExperimentCase):
 
 
 def build_case_from_config() -> ExperimentCase:
-    mode = str(CONFIG.get("mode", "preset"))
-    if mode == "preset":
-        preset_name = CONFIG["preset"]
-        if preset_name not in PRESETS:
-            known = ", ".join(sorted(PRESETS))
-            raise ValueError(f"Unknown preset {preset_name!r}. Known presets: {known}")
-        case = PRESETS[preset_name]()
-        maybe_save_case_files(case)
-        return case
-
-    if mode == "files":
-        system_path = CONFIG.get("system_file")
-        parameter_path = CONFIG.get("parameters_file")
-        if not system_path or not parameter_path:
-            raise ValueError(
-                "files mode requires CONFIG['system_file'] and CONFIG['parameters_file']"
-            )
-        return load_case_from_files(system_path, parameter_path)
-
-    raise ValueError("CONFIG['mode'] must be 'preset' or 'files'")
+    system_path = CONFIG.get("system_file")
+    parameter_path = CONFIG.get("parameters_file")
+    if not system_path or not parameter_path:
+        raise ValueError(
+            "CONFIG['system_file'] and CONFIG['parameters_file'] must both be set"
+        )
+    return load_case_from_files(system_path, parameter_path)
 
 
 def main() -> None:

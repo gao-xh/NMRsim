@@ -19,6 +19,16 @@ versions follow SemVer once we tag a first release.
   switches between `preset` and `files`, and `tests/test_main_io.py`
   covers 1D HF and 2D HSQC round-trip reconstruction.
 
+### Changed (2026-06-03 — file-only main inputs)
+- `main.py` no longer carries any built-in experiment presets. The entry
+  point now loads only from `test_inputs/test_system.json` and
+  `test_inputs/test_params.json`
+  (or whatever file paths are set in `CONFIG`). This keeps molecular
+  data and experiment parameters fully external to the script body.
+- Added folder-based templates `test_inputs/test_system.json` and
+  `test_inputs/test_params.json` as the default editable inputs for
+  manual testing.
+
 ### Changed (2026-06-03 — unified ZULF axis convention)
 - `src/core/regime.py` — `ZULF()` and `LF(B0_T=...)` now use the shared
   z-axis convention by default: `prepolarized_z(sys)` as the prepared

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "kind": "spin_system",
+  "label": "AX 1H pair",
+  "isotopes": ["1H", "1H"],
+  "shifts_ppm": [1.0, 3.0],
+  "J_Hz": [
+    [0.0, 7.0],
+    [7.0, 0.0]
+  ],
+  "T1": null
+}

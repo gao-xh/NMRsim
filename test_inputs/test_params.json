@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "kind": "experiment_parameters",
+  "name": "hf_zg_1h",
+  "note": "1D high-field pulse-acquire on a simple AX 1H system.",
+  "sequence": "pulse_acquire",
+  "regime": {
+    "kind": "HF",
+    "B0_T": 9.4,
+    "observed": "1H",
+    "carrier_ppm": 2.0
+  },
+  "acquisition": {
+    "kind": "Acquisition1D",
+    "n_points": 9600,
+    "dt": 0.00020833333333333335,
+    "t2_star": 0.5,
+    "zero_fill": 2,
+    "apodization": "exponential",
+    "lb_Hz": 1.0,
+    "gb_Hz": 0.0,
+    "half_first": true
+  },
+  "kwargs": {}
+}
