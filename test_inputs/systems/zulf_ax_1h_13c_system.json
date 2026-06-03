@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "kind": "spin_system",
+  "label": "ZULF AX 1H-13C pair",
+  "description": "Minimal heteronuclear ZULF test system: one 1H coupled to one 13C.",
+  "theoretical_spectrum": {
+    "summary": "For true zero field with z-prepolarized preparation and Mz detection, the heteronuclear AX pair shows a strong DC component plus a J line at |J|.",
+    "expected_lines_Hz": [
+      0.0,
+      140.0
+    ],
+    "notes": [
+      "The DC line comes from the part of the initial density operator that commutes with H_J.",
+      "The oscillating component produces a line at the singlet-triplet splitting |J| = 140 Hz.",
+      "Chemical shifts are set to 0 ppm because they collapse in true ZULF."
+    ]
+  },
+  "isotopes": [
+    "1H",
+    "13C"
+  ],
+  "shifts_ppm": [
+    0.0,
+    0.0
+  ],
+  "J_Hz": [
+    [
+      0.0,
+      140.0
+    ],
+    [
+      140.0,
+      0.0
+    ]
+  ],
+  "T1": null
+}

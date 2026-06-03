@@ -18,16 +18,21 @@ versions follow SemVer once we tag a first release.
   acquisition/kwargs live in a second JSON file. `CONFIG['mode']`
   switches between `preset` and `files`, and `tests/test_main_io.py`
   covers 1D HF and 2D HSQC round-trip reconstruction.
+- Added annotated ZULF sample inputs:
+  `test_inputs/systems/zulf_ax_1h_13c_system.json` and
+  `test_inputs/params/zulf_ax_j_spectrum_params.json`. Both include
+  JSON metadata fields describing the expected theoretical spectrum
+  (strong DC feature plus a heteronuclear line at |J| = 140 Hz).
 
 ### Changed (2026-06-03 — file-only main inputs)
 - `main.py` no longer carries any built-in experiment presets. The entry
-  point now loads only from `test_inputs/test_system.json` and
-  `test_inputs/test_params.json`
+  point now loads only from `test_inputs/systems/test_system.json` and
+  `test_inputs/params/test_params.json`
   (or whatever file paths are set in `CONFIG`). This keeps molecular
   data and experiment parameters fully external to the script body.
-- Added folder-based templates `test_inputs/test_system.json` and
-  `test_inputs/test_params.json` as the default editable inputs for
-  manual testing.
+- Added folder-based templates under `test_inputs/systems/` and
+  `test_inputs/params/` as the default editable inputs for manual
+  testing.
 
 ### Changed (2026-06-03 — unified ZULF axis convention)
 - `src/core/regime.py` — `ZULF()` and `LF(B0_T=...)` now use the shared

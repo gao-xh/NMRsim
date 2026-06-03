@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "kind": "experiment_parameters",
+  "name": "zulf_ax_j_spectrum",
+  "note": "Simple ZULF pulse-acquire on a 1H-13C AX pair using the shared z-axis convention.",
+  "theoretical_spectrum": {
+    "summary": "The simulated spectrum should show a dominant DC feature near 0 Hz and a second feature centered near 140 Hz.",
+    "expected_behavior": [
+      "In the current project convention, ZULF() means prepolarized_z plus Mz detection.",
+      "That choice leaves a non-oscillating component at 0 Hz.",
+      "The heteronuclear singlet-triplet energy gap gives an additional line at |J| = 140 Hz.",
+      "With exponential apodization and finite acquisition time, each ideal line is broadened into a narrow peak cluster rather than a single FFT bin."
+    ],
+    "practical_readout": "If the 140 Hz line is not obvious in the top few bins, increase T_s and/or reduce lb_Hz to sharpen it."
+  },
+  "sequence": "zulf_pulse_acquire",
+  "regime": {
+    "kind": "ZULF"
+  },
+  "acquisition": {
+    "kind": "Acquisition1D",
+    "n_points": 800,
+    "dt": 0.0025,
+    "t2_star": 1.0,
+    "zero_fill": 4,
+    "apodization": "exponential",
+    "lb_Hz": 0.5,
+    "gb_Hz": 0.0,
+    "half_first": true
+  },
+  "kwargs": {}
+}
