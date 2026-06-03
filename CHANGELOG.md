@@ -6,6 +6,14 @@ versions follow SemVer once we tag a first release.
 
 ## [Unreleased] — 0.1.0-dev
 
+### Added (2026-06-03 — manual driver entry point)
+- `main.py` — a no-UI, code-editable driver for running the simulator
+  directly from Python. The file exposes a small `CONFIG` block and a
+  set of example presets wiring together `SpinSystem`, `Regime`,
+  `Acquisition` / `Acquisition2D`, and the public sequence functions.
+  It prints a text summary of the selected experiment, lists the top
+  1D / 2D peaks, and optionally plots the spectrum with matplotlib.
+
 ### Changed (2026-06-03 — unified ZULF axis convention)
 - `src/core/regime.py` — `ZULF()` and `LF(B0_T=...)` now use the shared
   z-axis convention by default: `prepolarized_z(sys)` as the prepared

@@ -533,3 +533,9 @@ This section records architecture-level changes only. Per-change deltas
   (π–t₁–π excitation, e.g. the Blanchard/Budker 13C₂-AcOH 2D protocol) is
   deferred to v0.8 because its phase-cycling structure does not fit the
   States cos/sin pattern of `acquire2d_hypercomplex`.
+- **2026-06-03 — manual top-level driver.** Added `main.py` as the first
+  repo-root entry point for non-UI use. It is intentionally not an
+  argparse CLI: the top of the file is an editable config/preset block
+  so development-time experiments can be changed by editing Python,
+  while the bottom half stays a stable dispatcher for 1D and 2D
+  sequences. This is the intended bridge until a proper Qt UI lands.
